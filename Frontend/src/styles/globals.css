@@ -1,0 +1,90 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * London Eye - Gestion
+ * Estilos globales base
+ *
+ * Regla: solo poner aca lo que NO se pueda resolver con Tailwind.
+ * Todo lo demas va en clases de utilidad en los componentes.
+ */
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Estilos base de focus para accesibilidad */
+  :focus-visible {
+    outline: 2px solid theme('colors.royal.500');
+    outline-offset: 2px;
+    border-radius: theme('borderRadius.button');
+  }
+  /* Eliminar flechas de inputs numericos */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+}
+
+/* Certificado: tamaños en px FIJOS calibrados a un ancho de hoja de 600px
+   (el ancho real del nodo que se captura para el PDF, max-w-[600px]).
+   Se usa px y NO container queries (cqw) porque modern-screenshot/domToPng
+   re-resuelve mal el contexto de contención al clonar dentro de <foreignObject>
+   y rompe el interlineado del título. Con px fijos la captura es idéntica al DOM. */
+.cert-sheet {
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+.cert-sheet .c-pad { padding: 18px 30px; }
+.cert-sheet .c-wm { width: 432px; }
+.cert-sheet .c-logo { height: 78px; }
+.cert-sheet .c-instituto { font-size: 15px; line-height: 1.2; }
+.cert-sheet .c-title { font-size: 28px; line-height: 1.2; }
+.cert-sheet .c-subtitle { font-size: 15px; line-height: 1.2; }
+.cert-sheet .c-body { font-size: 16px; line-height: 1.35; gap: 10px; }
+.cert-sheet .c-small { font-size: 11px; line-height: 1.3; }
+.cert-sheet .c-tiny { font-size: 8px; line-height: 1.3; }
+.cert-sheet .c-mt-body { margin-top: 30px; }
+.cert-sheet .c-mt-sign { margin-top: 42px; }
+.cert-sheet .c-mt1 { margin-top: 5px; }
+.cert-sheet .c-sign { gap: 30px; }
+.cert-sheet .c-line { border-top: 2px dotted #64748b; }
+
+/* REPORT CARD (planilla de notas): px FIJOS calibrados a un ancho de hoja de
+   640px (el ancho real del nodo que se captura, max-w-[640px]). Se usa px y NO
+   container queries (cqw) porque html2canvas —la librería con la que se rasteriza
+   para el PDF— no soporta cqw. Con px la captura es idéntica en todos los
+   navegadores. (Conversión usada: valor_cqw / 100 × 640.) */
+.rc-sheet {
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+.rc-sheet .rc-pad { padding: 22px 26px; }
+.rc-sheet .rc-logo { height: 90px; }
+.rc-sheet .rc-title { font-size: 19px; }
+.rc-sheet .rc-meta { font-size: 12px; }
+.rc-sheet table { width: 100%; border-collapse: collapse; }
+.rc-sheet th, .rc-sheet td { border: 1px solid #334155; padding: 6px 8px; }
+.rc-sheet .rc-head { font-size: 11px; }
+.rc-sheet .rc-sub { font-size: 9px; }
+.rc-sheet .rc-cell { font-size: 12px; }
+.rc-sheet .rc-rowlabel { font-size: 10px; }
+.rc-sheet .rc-total { font-size: 15px; }
+.rc-sheet .rc-msg { font-size: 12px; }

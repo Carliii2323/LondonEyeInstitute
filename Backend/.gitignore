@@ -1,0 +1,26 @@
+# Binario compilado
+/sge-london-eye
+/sge-london-eye.exe
+
+# Variables de entorno
+.env
+
+# Comprobantes de pago (storage local)
+/uploads/*
+!/uploads/.gitkeep
+
+# Dependencias de Go (solo se necesita go.sum)
+vendor/
+
+# Archivos del IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Código generado por sqlc (se regenera con make sqlc-gen)
+internal/db/sqlc/*.go
+
+# Sistema operativo
+.DS_Store
+Thumbs.db

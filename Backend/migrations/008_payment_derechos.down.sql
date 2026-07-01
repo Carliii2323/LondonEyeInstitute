@@ -1,0 +1,3 @@
+-- Postgres no permite quitar valores de un ENUM directamente. Revertir 008
+-- requeriría recrear el tipo payment_type y migrar/blanquear las filas con
+-- 'derecho_inscripcion' / 'derecho_examen'. Se omite (no-op).

@@ -1,0 +1,3 @@
+-- Postgres no permite quitar un valor de un ENUM de forma directa: revertir
+-- 007 requeriría recrear el tipo payment_status y migrar/blanquear las filas
+-- 'anulado'. Se omite (no-op) para no arriesgar datos.

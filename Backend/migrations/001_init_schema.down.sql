@@ -1,0 +1,30 @@
+-- Revertir migración inicial (orden inverso de dependencias)
+DROP TABLE IF EXISTS refresh_tokens;
+DROP TABLE IF EXISTS certificates;
+DROP TABLE IF EXISTS notifications;
+DROP TABLE IF EXISTS calendar_events;
+DROP TABLE IF EXISTS payments;
+DROP TABLE IF EXISTS grade_makeups;
+DROP TABLE IF EXISTS grades;
+DROP TABLE IF EXISTS attendance_records;
+DROP TABLE IF EXISTS attendance_sessions;
+DROP TABLE IF EXISTS enrollments;
+DROP TABLE IF EXISTS courses;
+DROP TABLE IF EXISTS teachers;
+DROP TABLE IF EXISTS students;
+DROP TABLE IF EXISTS institute_settings;
+DROP TABLE IF EXISTS users;
+
+DROP TYPE IF EXISTS certificate_status;
+DROP TYPE IF EXISTS event_type;
+DROP TYPE IF EXISTS notification_audience;
+DROP TYPE IF EXISTS notification_type;
+DROP TYPE IF EXISTS late_fee_kind;
+DROP TYPE IF EXISTS payment_status;
+DROP TYPE IF EXISTS payment_type;
+DROP TYPE IF EXISTS attendance_status;
+DROP TYPE IF EXISTS enrollment_status;
+DROP TYPE IF EXISTS course_status;
+DROP TYPE IF EXISTS course_level;
+DROP TYPE IF EXISTS user_status;
+DROP TYPE IF EXISTS user_role;
