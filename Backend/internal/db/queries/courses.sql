@@ -88,6 +88,15 @@ LEFT JOIN users u ON t.id = u.id
 WHERE e.student_id = $1 AND e.status = 'active'
 ORDER BY c.name;
 
+-- name: GetCourseStats :one
+-- Agregados para las stat cards de Cursos (admin).
+SELECT
+    COUNT(*) FILTER (WHERE c.status = 'activo')        AS active,
+    COUNT(*) FILTER (WHERE c.status = 'cupo_completo') AS full,
+    COUNT(*) FILTER (WHERE c.status = 'inactivo')      AS inactive,
+    (SELECT COUNT(*) FROM enrollments WHERE status = 'active') AS enrolled
+FROM courses c;
+
 -- name: GetCourseTeacherID :one
 SELECT teacher_id FROM courses WHERE id = $1;
 

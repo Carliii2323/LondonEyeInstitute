@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useEffect, useState } from 'react'
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal'
 import { FormField } from '@/components/forms/FormField'
 import { Button } from '@/components/ui/Button'
@@ -21,18 +21,33 @@ import type { StudentFormValues } from './EditStudentModal'
 
 export interface NewStudentValues extends StudentFormValues {
   password: string
+  course_ids: string[]
 }
 
 interface NewStudentModalProps {
   isOpen: boolean
   onClose: () => void
   onSubmit: (values: NewStudentValues) => Promise<void>
+  courses: { id: string; name: string }[]
 }
 
-export function NewStudentModal({ isOpen, onClose, onSubmit }: NewStudentModalProps) {
+export function NewStudentModal({ isOpen, onClose, onSubmit, courses }: NewStudentModalProps) {
   const [hasTutor, setHasTutor] = useState(false)
+  const [selectedCourses, setSelectedCourses] = useState<string[]>([])
   const [isSubmitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (isOpen) {
+      setHasTutor(false)
+      setSelectedCourses([])
+      setError(null)
+    }
+  }, [isOpen])
+
+  function toggleCourse(id: string) {
+    setSelectedCourses((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -46,9 +61,11 @@ export function NewStudentModal({ isOpen, onClose, onSubmit }: NewStudentModalPr
       email: String(form.get('email') ?? ''),
       phone: String(form.get('phone') ?? ''),
       address: String(form.get('address') ?? ''),
+      birth_date: String(form.get('birth_date') ?? ''),
       password: String(form.get('password') ?? ''),
       tutor_name: hasTutor ? String(form.get('tutor_name') ?? '') : '',
       tutor_phone: hasTutor ? String(form.get('tutor_phone') ?? '') : '',
+      course_ids: selectedCourses,
     }
 
     setSubmitting(true)
@@ -92,7 +109,32 @@ export function NewStudentModal({ isOpen, onClose, onSubmit }: NewStudentModalPr
             minLength={8}
           />
 
-          <FormField label="Direccion" name="address" placeholder="Calle, Numero, Localidad" />
+          <div className="grid grid-cols-2 gap-4">
+            <FormField label="Direccion" name="address" placeholder="Calle, Numero, Localidad" />
+            <FormField label="Fecha de Nacimiento" name="birth_date" type="date" />
+          </div>
+
+          {courses.length > 0 && (
+            <div>
+              <label className="text-small font-semibold text-surface-500 uppercase tracking-wider">Inscribir a cursos (opcional)</label>
+              <div className="mt-1.5 flex max-h-40 flex-col gap-1 overflow-y-auto rounded-input border border-surface-200 p-2">
+                {courses.map((c) => (
+                  <label key={c.id} className="flex cursor-pointer items-center gap-2 rounded-button px-2 py-1.5 hover:bg-surface-50">
+                    <input
+                      type="checkbox"
+                      checked={selectedCourses.includes(c.id)}
+                      onChange={() => toggleCourse(c.id)}
+                      className="h-4 w-4 rounded border-surface-300 text-royal-500 focus:ring-royal-500/30"
+                    />
+                    <span className="text-body text-surface-700">{c.name}</span>
+                  </label>
+                ))}
+              </div>
+              {selectedCourses.length > 0 && (
+                <p className="mt-1 text-small text-surface-400">{selectedCourses.length} curso(s) seleccionado(s).</p>
+              )}
+            </div>
+          )}
 
           <div className="flex items-center justify-between p-3 bg-surface-50 rounded-button border border-surface-100">
             <div>

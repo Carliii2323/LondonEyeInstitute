@@ -41,6 +41,7 @@ func (s *DashboardService) Stats(ctx context.Context, month, year int) (*dto.Das
 		ActiveTeachers: r.ActiveTeachers,
 		Collected:      numericToString(r.Collected),
 		PendingAmount:  numericToString(r.PendingAmount),
+		OverdueAmount:  numericToString(r.OverdueAmount),
 		OtherCollected: numericToString(r.OtherCollected),
 	}, nil
 }
@@ -111,6 +112,39 @@ func (s *DashboardService) Activity(ctx context.Context, limit int) ([]dto.Activ
 		items[i] = t.item
 	}
 	return items, nil
+}
+
+// EnrollmentsSeries — inscripciones por mes de los últimos N meses (B19).
+func (s *DashboardService) EnrollmentsSeries(ctx context.Context, months int) ([]dto.EnrollmentPoint, error) {
+	q := dbsqlc.New(s.pool)
+
+	if months < 1 {
+		months = 6
+	}
+	if months > 24 {
+		months = 24
+	}
+
+	now := time.Now()
+	firstThisMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+	start := firstThisMonth.AddDate(0, -(months - 1), 0)
+
+	rows, err := q.EnrollmentsSeries(ctx, pgtype.Date{Time: start, Valid: true})
+	if err != nil {
+		return nil, apperror.ErrInternal
+	}
+
+	counts := make(map[string]int64, len(rows))
+	for _, r := range rows {
+		counts[r.Month] = r.Count
+	}
+
+	series := make([]dto.EnrollmentPoint, months)
+	for i := 0; i < months; i++ {
+		key := start.AddDate(0, i, 0).Format("2006-01")
+		series[i] = dto.EnrollmentPoint{Month: key, Count: counts[key]}
+	}
+	return series, nil
 }
 
 func (s *DashboardService) UpcomingEvents(ctx context.Context, limit int) ([]dto.UpcomingEventItem, error) {

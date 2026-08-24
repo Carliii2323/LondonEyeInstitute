@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -13,6 +14,7 @@ import (
 	"sge-london-eye/internal/config"
 	"sge-london-eye/internal/cron"
 	"sge-london-eye/internal/db"
+	"sge-london-eye/internal/mailer"
 	"sge-london-eye/internal/server"
 	"sge-london-eye/internal/services"
 	"sge-london-eye/internal/storage"
@@ -20,6 +22,16 @@ import (
 
 func main() {
 	cfg := config.Load()
+
+	// Logging estructurado (slog): JSON en producción, texto legible en dev.
+	opts := &slog.HandlerOptions{Level: slog.LevelInfo}
+	var handler slog.Handler
+	if cfg.Env == "production" {
+		handler = slog.NewJSONHandler(os.Stdout, opts)
+	} else {
+		handler = slog.NewTextHandler(os.Stdout, opts)
+	}
+	slog.SetDefault(slog.New(handler))
 
 	if cfg.JWTSecret == "" {
 		log.Fatal("JWT_SECRET es obligatorio")
@@ -33,14 +45,24 @@ func main() {
 
 	// Composition root: services que necesitan los jobs de cron
 	store := storage.NewLocalStorage(cfg.StoragePath, "/uploads")
+	mail := mailer.New(cfg)
+
+	// Poller de comprobantes por mail: solo si IMAP está configurado (host + user).
+	var inboundPoller *services.InboundPoller
+	if cfg.IMAPHost != "" && cfg.IMAPUser != "" {
+		inboundPoller = services.NewInboundPoller(pool, store, cfg)
+	}
+
 	runner := cron.NewRunner(
 		services.NewPaymentService(pool, store),
-		services.NewAuthService(pool, cfg),
+		services.NewAuthService(pool, cfg, mail, store),
+		inboundPoller,
+		cfg.InboundPollMinutes,
 	)
 	cronInstance := runner.Start()
 	defer cronInstance.Stop()
 
-	srv := server.New(cfg, pool, runner)
+	srv := server.New(cfg, pool, runner, mail)
 
 	go func() {
 		if err := srv.Run(); err != nil && !errors.Is(err, http.ErrServerClosed) {

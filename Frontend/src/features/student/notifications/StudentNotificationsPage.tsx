@@ -39,7 +39,7 @@ export function StudentNotificationsPage() {
 
   return (
     <PageContainer title="Notificaciones">
-      <div className="bg-white rounded-card shadow-card p-6">
+      <div className="bg-white rounded-card shadow-card p-4 sm:p-6">
         <h2 className="font-heading text-section-title text-surface-900">Avisos del Instituto</h2>
         <p className="text-small text-surface-500 mt-0.5 mb-4">Avisos y novedades dirigidos a vos.</p>
 
@@ -72,9 +72,10 @@ export function StudentNotificationsPage() {
                           {n.course_name}
                         </span>
                       )}
+                      <span className="text-small text-surface-400 sm:hidden">{relativeTime(n.created_at)}</span>
                     </div>
                   </div>
-                  <span className="text-small text-surface-400 whitespace-nowrap flex-shrink-0">{relativeTime(n.created_at)}</span>
+                  <span className="hidden text-small text-surface-400 whitespace-nowrap flex-shrink-0 sm:block">{relativeTime(n.created_at)}</span>
                 </div>
               )
             })}

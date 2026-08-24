@@ -10,6 +10,7 @@ type CalendarEventItem struct {
 	Message    string `json:"message,omitempty"`
 	CourseID   string `json:"course_id,omitempty"`
 	CourseName string `json:"course_name,omitempty"`
+	CreatedBy  string `json:"created_by"`
 	CreatedAt  string `json:"created_at"`
 }
 

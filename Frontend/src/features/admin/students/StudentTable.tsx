@@ -12,7 +12,7 @@ import type { StudentListItem } from '@/services/studentService'
  * Los alumnos "pending" se resaltan y muestran boton APROBAR.
  * ============================================================ */
 
-const COLUMN_HEADERS = ['Nombre', 'DNI', 'Contacto', 'Telefono', 'Estado', 'Acciones']
+const COLUMN_HEADERS = ['Nombre', 'DNI', 'Contacto', 'Telefono', 'Cursos', 'Tutor', 'Estado', 'Acciones']
 
 const STATUS_LABEL: Record<string, string> = {
   active: 'Activo',
@@ -79,9 +79,18 @@ export function StudentTable({
                     <td className="px-4 py-4 text-body text-surface-600 whitespace-nowrap">{student.dni}</td>
                     <td className="px-4 py-4 text-body text-surface-600">
                       {student.email || <span className="text-surface-300">&mdash;</span>}
+                      {student.email && !student.email_verified && (
+                        <span className="block text-[0.7rem] font-medium text-amber-600 mt-0.5">Sin verificar</span>
+                      )}
                     </td>
                     <td className="px-4 py-4 text-body text-surface-600">
                       {student.phone || <span className="text-surface-300">&mdash;</span>}
+                    </td>
+                    <td className="px-4 py-4 text-body text-surface-600 max-w-[14rem] truncate" title={student.courses}>
+                      {student.courses || <span className="text-surface-300">&mdash;</span>}
+                    </td>
+                    <td className="px-4 py-4 text-body text-surface-600">
+                      {student.tutor_name || <span className="text-surface-300">&mdash;</span>}
                     </td>
                     <td className="px-4 py-4">
                       <span className={`inline-flex px-2.5 py-0.5 rounded-badge text-small font-medium ${STATUS_CLASS[student.status] ?? ''}`}>

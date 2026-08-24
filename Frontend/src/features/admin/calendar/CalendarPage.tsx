@@ -24,6 +24,7 @@ export function CalendarPage() {
   const [courses, setCourses] = useState<{ id: string; name: string }[]>([])
   const [search, setSearch] = useState('')
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
   const [isLoading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -77,7 +78,7 @@ export function CalendarPage() {
           onPrevMonth={() => setViewDate((d) => shiftMonth(d, -1))}
           onNextMonth={() => setViewDate((d) => shiftMonth(d, 1))}
           onMonthYearChange={(month, year) => setViewDate(new Date(year, month, 1))}
-          onNewEvent={() => setSelectedDate(new Date())}
+          onNewEvent={() => { setSelectedEvent(null); setSelectedDate(new Date()) }}
         />
 
         <div className="p-5">
@@ -89,7 +90,8 @@ export function CalendarPage() {
             <CalendarGrid
               viewDate={viewDate}
               events={filteredEvents}
-              onDayClick={(date) => setSelectedDate(date)}
+              onDayClick={(date) => { setSelectedEvent(null); setSelectedDate(date) }}
+              onEventClick={(ev) => { setSelectedEvent(ev); setSelectedDate(isoToDate(ev.date)) }}
             />
           )}
         </div>
@@ -99,11 +101,18 @@ export function CalendarPage() {
 
       <NewEventModal
         isOpen={selectedDate !== null}
-        onClose={() => setSelectedDate(null)}
+        onClose={() => { setSelectedDate(null); setSelectedEvent(null) }}
         onCreated={fetchEvents}
         selectedDate={selectedDate}
+        event={selectedEvent}
         courses={courses}
       />
     </PageContainer>
   )
+}
+
+/** "YYYY-MM-DD" → Date local (sin corrimiento UTC). */
+function isoToDate(iso: string): Date {
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number)
+  return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1)
 }

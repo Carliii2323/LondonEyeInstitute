@@ -18,6 +18,14 @@ type CourseListItem struct {
 	CreatedAt        string  `json:"created_at"`
 }
 
+// CourseStats — GET /admin/courses/stats (stat cards).
+type CourseStats struct {
+	Active   int64 `json:"active"`
+	Full     int64 `json:"full"`
+	Inactive int64 `json:"inactive"`
+	Enrolled int64 `json:"enrolled"`
+}
+
 // StudentCourse — GET /student/courses ("Mis Cursos" del alumno).
 type StudentCourse struct {
 	ID            string `json:"id"`

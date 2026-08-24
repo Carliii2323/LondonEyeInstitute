@@ -1,0 +1,20 @@
+# Normalizacion de fin de linea.
+# git almacena SIEMPRE en LF y hace checkout en LF. Esto elimina el ruido
+# CRLF<->LF en los diffs (el working tree en Windows quedaba en CRLF mientras
+# el commit inicial estaba en LF, y git marcaba archivos enteros como cambiados).
+# No cambia el contenido: solo el fin de linea.
+* text=auto eol=lf
+
+# Binarios: nunca normalizar (evita corromperlos).
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.webp  binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.eot   binary
+*.xlsx  binary

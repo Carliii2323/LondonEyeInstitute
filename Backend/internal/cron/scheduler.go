@@ -2,6 +2,7 @@ package cron
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"sort"
 	"time"
@@ -17,18 +18,24 @@ type JobFunc func(context.Context) (map[string]any, error)
 // Runner orquesta los jobs programados. La whitelist de jobs válidos es
 // el propio mapa: un nombre fuera de él no se puede ejecutar.
 type Runner struct {
-	jobs map[string]JobFunc
+	jobs            map[string]JobFunc
+	inboundEnabled  bool
+	inboundEveryMin int
 }
 
-func NewRunner(payments *services.PaymentService, auth *services.AuthService) *Runner {
-	return &Runner{
-		jobs: map[string]JobFunc{
-			"monthly-invoices": payments.GenerateMonthlyInvoices,
-			"course-derechos":  payments.GenerateDerechos,
-			"overdue-payments": payments.MarkOverduePayments,
-			"cleanup-tokens":   auth.CleanupExpiredTokens,
-		},
+// NewRunner arma el runner. inbound puede ser nil (si no hay IMAP configurado):
+// en ese caso el job "poll-inbound" no se registra ni se agenda.
+func NewRunner(payments *services.PaymentService, auth *services.AuthService, inbound *services.InboundPoller, inboundEveryMin int) *Runner {
+	jobs := map[string]JobFunc{
+		"monthly-invoices": payments.GenerateMonthlyInvoices,
+		"course-derechos":  payments.GenerateDerechos,
+		"overdue-payments": payments.MarkOverduePayments,
+		"cleanup-tokens":   auth.CleanupExpiredTokens,
 	}
+	if inbound != nil {
+		jobs["poll-inbound"] = inbound.PollInbox
+	}
+	return &Runner{jobs: jobs, inboundEnabled: inbound != nil, inboundEveryMin: inboundEveryMin}
 }
 
 // Run ejecuta un job por nombre. El segundo retorno indica si el job existe
@@ -61,8 +68,19 @@ func (r *Runner) Start() *cron.Cron {
 	c.AddFunc("15 2 1 * *", func() { r.runLogged("course-derechos") }) // 1° de mes 02:15 (solo actúa feb/jul/nov)
 	c.AddFunc("0 3 * * *", func() { r.runLogged("overdue-payments") }) // diario 03:00
 	c.AddFunc("0 4 * * *", func() { r.runLogged("cleanup-tokens") })   // diario 04:00
+
+	inboundMsg := "poll-inbound (deshabilitado: sin IMAP)"
+	if r.inboundEnabled {
+		every := r.inboundEveryMin
+		if every < 1 {
+			every = 5
+		}
+		c.AddFunc(fmt.Sprintf("@every %dm", every), func() { r.runLogged("poll-inbound") })
+		inboundMsg = fmt.Sprintf("poll-inbound (cada %dm)", every)
+	}
+
 	c.Start()
-	log.Println("cron iniciado: monthly-invoices (1° 02:00), course-derechos (1° 02:15), overdue-payments (diario 03:00), cleanup-tokens (diario 04:00)")
+	log.Printf("cron iniciado: monthly-invoices (1° 02:00), course-derechos (1° 02:15), overdue-payments (diario 03:00), cleanup-tokens (diario 04:00), %s", inboundMsg)
 	return c
 }
 

@@ -15,6 +15,7 @@ export interface TeacherListItem {
   email: string
   dni: string
   phone: string
+  courses_count: number
   status: UserStatus
   created_at: string
 }

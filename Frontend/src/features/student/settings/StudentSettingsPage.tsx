@@ -6,6 +6,7 @@ import { SettingsSection } from '@/features/admin/settings/SettingsSection'
 import { SettingsField } from '@/features/admin/settings/SettingsField'
 import { useAuthStore } from '@/stores/authStore'
 import { profileService } from '@/services/profileService'
+import { studentService } from '@/services/studentService'
 import { authService } from '@/services/authService'
 import { formatBackendError } from '@/lib/formatBackendError'
 import { Info, Shield, User } from 'lucide-react'
@@ -14,10 +15,10 @@ import { Info, Shield, User } from 'lucide-react'
  * StudentSettingsPage — Datos personales + seguridad (conectado)
  *
  *   Datos personales -> PUT /profile (first_name, last_name, phone)
+ *                     + PUT /student/profile/address (direccion propia, F9)
  *   Seguridad        -> PUT /profile/password (revoca sesiones -> re-login)
  *
- * El email es identidad (no editable). La direccion no se edita desde
- * el perfil (es un dato gestionado por administracion).
+ * El email es identidad (no editable).
  * ============================================================ */
 
 export function StudentSettingsPage() {
@@ -29,6 +30,7 @@ export function StudentSettingsPage() {
   const [lastName, setLastName] = useState('')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
+  const [address, setAddress] = useState('')
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileError, setProfileError] = useState<string | null>(null)
   const [profileOk, setProfileOk] = useState(false)
@@ -41,14 +43,14 @@ export function StudentSettingsPage() {
 
   useEffect(() => {
     let active = true
-    profileService
-      .get()
-      .then((p) => {
+    Promise.all([profileService.get(), studentService.getMyProfile()])
+      .then(([p, s]) => {
         if (!active) return
         setFirstName(p.first_name)
         setLastName(p.last_name)
         setPhone(p.phone)
         setEmail(p.email)
+        setAddress(s.address)
       })
       .catch((err) => active && setProfileError(formatBackendError(err)))
     return () => { active = false }
@@ -60,11 +62,14 @@ export function StudentSettingsPage() {
     setProfileError(null)
     setProfileOk(false)
     try {
-      const updated = await profileService.update({
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        phone: phone.trim(),
-      })
+      const [updated] = await Promise.all([
+        profileService.update({
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          phone: phone.trim(),
+        }),
+        studentService.updateMyAddress(address.trim()),
+      ])
       if (user) setSessionUser(updated) // refresca el nombre en el sidebar
       setProfileOk(true)
     } catch (err) {
@@ -115,10 +120,13 @@ export function StudentSettingsPage() {
               <SettingsField label="Apellido" name="last_name" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
               <SettingsField label="Correo Electronico" name="email" value={email} disabled readOnly />
               <SettingsField label="Telefono" name="phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <div className="md:col-span-2">
+                <SettingsField label="Direccion" name="address" value={address} onChange={(e) => setAddress(e.target.value)} />
+              </div>
             </div>
 
             <div className="mt-4 flex justify-end">
-              <Button type="submit" form="profile-form" variant="danger" size="md" isLoading={profileSaving}>
+              <Button type="submit" form="profile-form" variant="danger" size="md" isLoading={profileSaving} className="w-full sm:w-auto">
                 Guardar Datos
               </Button>
             </div>
@@ -146,7 +154,7 @@ export function StudentSettingsPage() {
             </div>
 
             <div className="mt-4 flex justify-end">
-              <Button type="submit" form="password-form" variant="secondary" size="md" isLoading={passwordSaving}>
+              <Button type="submit" form="password-form" variant="secondary" size="md" isLoading={passwordSaving} className="w-full sm:w-auto">
                 Cambiar Contrasena
               </Button>
             </div>

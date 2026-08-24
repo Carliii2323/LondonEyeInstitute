@@ -1,11 +1,35 @@
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { Hourglass, Mail, Check, GraduationCap, BookOpen } from 'lucide-react'
+import { authService } from '@/services/authService'
+import { formatBackendError } from '@/lib/formatBackendError'
 
 /* ============================================================
  * RequestPendingPage — Solicitud en revision (post-registro)
+ *
+ * Muestra el estado: (1) verificar email, (2) revision del admin.
+ * Recibe el email por location.state para el reenvio de verificacion.
  * ============================================================ */
 
 export function RequestPendingPage() {
+  const location = useLocation()
+  const email = (location.state as { email?: string } | null)?.email ?? ''
+  const [resendState, setResendState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+  const [resendError, setResendError] = useState('')
+
+  async function handleResend() {
+    if (!email) return
+    setResendState('sending')
+    setResendError('')
+    try {
+      await authService.resendVerification(email)
+      setResendState('sent')
+    } catch (err) {
+      setResendState('error')
+      setResendError(formatBackendError(err))
+    }
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-surface-50 px-4">
       {/* Logo */}
@@ -31,20 +55,36 @@ export function RequestPendingPage() {
         </div>
 
         <h1 className="font-heading text-page-title text-surface-900">
-          Solicitud en revision
+          Verifica tu email
         </h1>
         <p className="text-body text-surface-500 mt-3 max-w-sm mx-auto">
-          Tu solicitud de registro fue enviada correctamente. Un administrador revisara tus datos y te enviara un mail de confirmacion una vez aprobado el acceso.
+          Te enviamos un correo para confirmar tu direccion. Hace clic en el link del mail para verificarla. Despues, un administrador aprobara tu cuenta.
         </p>
 
         {/* Info box */}
         <div className="mt-6 p-4 bg-royal-50/50 border border-royal-100 rounded-button text-left flex items-start gap-2">
           <Mail size={18} className="text-royal-500 flex-shrink-0 mt-0.5" />
-          <div>
+          <div className="min-w-0">
             <span className="text-small text-royal-700">
-              Revisamos las solicitudes en un plazo de <strong>24 a 48 horas habiles</strong>. Recibiras un correo en:
+              Revisa tu bandeja de entrada{email ? ' en:' : '.'}
             </span>
-            <p className="text-small font-semibold text-royal-700 mt-1">sofia.m@gmail.com</p>
+            {email && <p className="text-small font-semibold text-royal-700 mt-1 break-all">{email}</p>}
+            {email && (
+              <div className="mt-2">
+                {resendState === 'sent' ? (
+                  <span className="text-small text-emerald-600">Reenviamos el link de verificacion.</span>
+                ) : (
+                  <button
+                    onClick={handleResend}
+                    disabled={resendState === 'sending'}
+                    className="text-small font-semibold text-royal-600 hover:text-royal-700 disabled:opacity-50"
+                  >
+                    {resendState === 'sending' ? 'Reenviando...' : 'No te llego? Reenviar email'}
+                  </button>
+                )}
+                {resendState === 'error' && <p className="text-small text-accent-600 mt-1">{resendError}</p>}
+              </div>
+            )}
           </div>
         </div>
 
@@ -52,9 +92,9 @@ export function RequestPendingPage() {
         <div className="flex items-center justify-center gap-0 mt-8">
           <StepItem number={1} label="Registro Enviado" status="completed" />
           <StepConnector active />
-          <StepItem number={2} label="En Revision" status="active" />
+          <StepItem number={2} label="Verificar Email" status="active" />
           <StepConnector />
-          <StepItem number={3} label="Acceso Habilitado" status="pending" />
+          <StepItem number={3} label="Aprobacion Admin" status="pending" />
         </div>
 
         {/* Actions */}

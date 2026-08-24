@@ -36,3 +36,9 @@ ON CONFLICT (student_id, course_id, year, term) DO UPDATE SET
     speaking  = EXCLUDED.speaking,
     writing   = EXCLUDED.writing,
     updated_at = NOW();
+
+-- name: GetGradesForCertificate :many
+-- Notas por término de un alumno en un curso/año (para el promedio del certificado).
+SELECT term, reading, listening, speaking, writing
+FROM grades
+WHERE student_id = $1 AND course_id = $2 AND year = $3;

@@ -15,15 +15,18 @@ LIMIT 1;
 -- name: ListTeachers :many
 SELECT
     u.id, u.email, u.first_name, u.last_name, u.phone, u.status, u.created_at,
-    t.dni
+    t.dni,
+    COUNT(c.id) AS courses_count
 FROM teachers t
 JOIN users u ON t.id = u.id
+LEFT JOIN courses c ON c.teacher_id = t.id
 WHERE
     ($1 = '' OR u.first_name ILIKE '%' || $1 || '%'
         OR u.last_name ILIKE '%' || $1 || '%'
         OR u.email ILIKE '%' || $1 || '%'
         OR t.dni ILIKE '%' || $1 || '%')
     AND ($2 = '' OR u.status::text = $2)
+GROUP BY u.id, t.dni
 ORDER BY u.created_at DESC
 LIMIT $3 OFFSET $4;
 

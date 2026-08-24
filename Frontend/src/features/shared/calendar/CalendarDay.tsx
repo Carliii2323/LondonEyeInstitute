@@ -17,16 +17,18 @@ interface CalendarDayProps {
   isToday: boolean
   events: CalendarEvent[]
   onClick: (date: Date) => void
+  /** Si viene, los eventos son clickeables (para ver/editar). */
+  onEventClick?: (event: CalendarEvent) => void
 }
 
-export function CalendarDay({ date, isCurrentMonth, isToday, events, onClick }: CalendarDayProps) {
+export function CalendarDay({ date, isCurrentMonth, isToday, events, onClick, onEventClick }: CalendarDayProps) {
   const hasHoliday = events.some((e) => e.type === 'feriado')
 
   return (
-    <button
+    <div
       onClick={() => onClick(date)}
       className={cn(
-        'flex flex-col gap-1 min-h-[110px] p-2',
+        'flex flex-col gap-1 min-h-[110px] p-2 cursor-pointer',
         'border-r border-b border-surface-100 last:border-r-0',
         'text-left transition-colors',
         hasHoliday ? 'bg-amber-50/60' : 'hover:bg-surface-50',
@@ -42,12 +44,23 @@ export function CalendarDay({ date, isCurrentMonth, isToday, events, onClick }: 
       {/* Eventos */}
       {events.length > 0 && (
         <div className="flex flex-col gap-1 mt-0.5">
-          {events.map((event) => (
-            <CalendarEventBadge key={event.id} title={event.title} type={event.type} />
-          ))}
+          {events.map((event) =>
+            onEventClick ? (
+              <button
+                key={event.id}
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onEventClick(event) }}
+                className="text-left rounded-badge focus:outline-none focus:ring-2 focus:ring-royal-500/30"
+              >
+                <CalendarEventBadge title={event.title} type={event.type} />
+              </button>
+            ) : (
+              <CalendarEventBadge key={event.id} title={event.title} type={event.type} />
+            ),
+          )}
         </div>
       )}
-    </button>
+    </div>
   )
 }
 

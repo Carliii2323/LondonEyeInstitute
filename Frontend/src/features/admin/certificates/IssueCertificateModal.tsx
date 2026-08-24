@@ -29,7 +29,6 @@ export function IssueCertificateModal({ isOpen, onClose, onIssued, courses }: Is
   const [students, setStudents] = useState<{ id: string; name: string }[]>([])
   const [studentId, setStudentId] = useState('')
   const [year, setYear] = useState(String(new Date().getFullYear()))
-  const [avgGrade, setAvgGrade] = useState('')
   const [hours, setHours] = useState('')
   const [isSubmitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -37,7 +36,7 @@ export function IssueCertificateModal({ isOpen, onClose, onIssued, courses }: Is
   useEffect(() => {
     if (isOpen) {
       setCourseId(''); setStudents([]); setStudentId('')
-      setYear(String(new Date().getFullYear())); setAvgGrade(''); setHours(''); setError(null)
+      setYear(String(new Date().getFullYear())); setHours(''); setError(null)
     }
   }, [isOpen])
 
@@ -63,7 +62,6 @@ export function IssueCertificateModal({ isOpen, onClose, onIssued, courses }: Is
         student_id: studentId,
         course_id: courseId,
         year: parseInt(year, 10) || new Date().getFullYear(),
-        avg_grade: avgGrade === '' ? null : Number(avgGrade),
         presential_hours: hours === '' ? null : Math.trunc(Number(hours)),
       })
       onIssued()
@@ -99,14 +97,13 @@ export function IssueCertificateModal({ isOpen, onClose, onIssued, courses }: Is
             </select>
           </Field>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <FormField label="Año" name="year" type="number" value={year} onChange={(e) => setYear(e.target.value)} required />
-            <FormField label="Promedio (%)" name="avg_grade" type="number" placeholder="0-100" value={avgGrade} onChange={(e) => setAvgGrade(e.target.value)} />
             <FormField label="Horas presenciales" name="presential_hours" type="number" placeholder="ej. 120" value={hours} onChange={(e) => setHours(e.target.value)} />
           </div>
 
           <p className="text-small text-surface-500">
-            El <strong>promedio (%)</strong> y las <strong>horas presenciales</strong> salen impresos en el certificado. El sistema verifica que las cuotas del año estén al día.
+            El <strong>promedio</strong> se calcula automáticamente de las notas del año (no se carga a mano). Las <strong>horas presenciales</strong> salen impresas en el certificado. El sistema verifica que las cuotas del año estén al día.
           </p>
         </form>
       </ModalBody>

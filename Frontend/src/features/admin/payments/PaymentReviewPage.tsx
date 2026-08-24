@@ -3,6 +3,7 @@ import { PageContainer } from '@/components/layout/PageContainer'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { RejectReceiptModal } from './RejectReceiptModal'
+import { InboundReceiptsCard } from './InboundReceiptsCard'
 import { paymentService, type PaymentListItem } from '@/services/paymentService'
 import { periodLabel, typeLabel, formatMoney, formatDateTime } from '@/lib/paymentFormat'
 import { formatBackendError } from '@/lib/formatBackendError'
@@ -70,6 +71,9 @@ export function PaymentReviewPage() {
       {error && (
         <div className="p-3 rounded-button bg-accent-50 border border-accent-200 text-small text-accent-600">{error}</div>
       )}
+
+      {/* Bandeja de comprobantes que llegaron por mail (card aparte). */}
+      <InboundReceiptsCard onChanged={fetchPending} />
 
       <section className="mt-4 bg-white rounded-card shadow-card overflow-hidden">
         <div className="flex items-center justify-between p-5 pb-4">

@@ -12,9 +12,10 @@ interface CalendarGridProps {
   viewDate: Date
   events: CalendarEvent[]
   onDayClick: (date: Date) => void
+  onEventClick?: (event: CalendarEvent) => void
 }
 
-export function CalendarGrid({ viewDate, events, onDayClick }: CalendarGridProps) {
+export function CalendarGrid({ viewDate, events, onDayClick, onEventClick }: CalendarGridProps) {
   const days = buildMonthMatrix(viewDate)
   const today = new Date()
 
@@ -47,6 +48,7 @@ export function CalendarGrid({ viewDate, events, onDayClick }: CalendarGridProps
               isToday={isSameDay(date, today)}
               events={eventsByDate.get(isoDate) ?? []}
               onClick={onDayClick}
+              onEventClick={onEventClick}
             />
           )
         })}

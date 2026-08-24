@@ -7,7 +7,8 @@ type DashboardStats struct {
 	ActiveCourses  int64  `json:"active_courses"`
 	ActiveTeachers int64  `json:"active_teachers"`
 	Collected      string `json:"collected"`       // cuotas mensuales approved del mes
-	PendingAmount  string `json:"pending_amount"`  // cuotas pending+overdue del mes (con recargo)
+	PendingAmount  string `json:"pending_amount"`  // cuotas 'pending' del mes, aún por vencer (con recargo)
+	OverdueAmount  string `json:"overdue_amount"`  // cuotas 'overdue' del mes, en mora (con recargo)
 	OtherCollected string `json:"other_collected"` // cargos adicionales approved del mes
 }
 
@@ -16,6 +17,12 @@ type ActivityItem struct {
 	Type        string `json:"type"` // enrollment | payment_submitted | payment_approved
 	At          string `json:"at"`
 	Description string `json:"description"`
+}
+
+// EnrollmentPoint — punto de la serie mensual de inscripciones (B19).
+type EnrollmentPoint struct {
+	Month string `json:"month"` // "YYYY-MM"
+	Count int64  `json:"count"`
 }
 
 type UpcomingEventItem struct {

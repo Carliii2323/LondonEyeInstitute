@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { PageContainer } from '@/components/layout/PageContainer'
 import { Button } from '@/components/ui/Button'
+import { ExportButton } from '@/components/ui/ExportButton'
+import type { TableExport } from '@/lib/exportTable'
 import { Pagination } from '@/components/ui/Pagination'
 import { StudentFilters } from './StudentFilters'
 import { StudentTable } from './StudentTable'
@@ -14,6 +16,8 @@ import {
   type StudentDetail,
   type StudentPaymentItem,
 } from '@/services/studentService'
+import { courseService } from '@/services/courseService'
+import { enrollmentService } from '@/services/enrollmentService'
 import { formatBackendError } from '@/lib/formatBackendError'
 
 /* ============================================================
@@ -21,6 +25,12 @@ import { formatBackendError } from '@/lib/formatBackendError'
  * ============================================================ */
 
 const PAGE_SIZE = 10
+
+const STATUS_EXPORT_LABEL: Record<string, string> = {
+  active: 'Activo',
+  pending: 'Pendiente',
+  inactive: 'Inactivo',
+}
 
 export function StudentsPage() {
   const [students, setStudents] = useState<StudentListItem[]>([])
@@ -31,6 +41,7 @@ export function StudentsPage() {
   const [isLoading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const [courses, setCourses] = useState<{ id: string; name: string }[]>([])
   const [dropTarget, setDropTarget] = useState<{ id: string; name: string } | null>(null)
   const [isNewOpen, setNewOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<{ id: string; values: StudentFormValues } | null>(null)
@@ -59,6 +70,13 @@ export function StudentsPage() {
     const timer = setTimeout(fetchStudents, 350)
     return () => clearTimeout(timer)
   }, [fetchStudents])
+
+  useEffect(() => {
+    courseService
+      .list({ status: 'activo', page_size: 100 })
+      .then((res) => setCourses(res.data.map((c) => ({ id: c.id, name: c.name }))))
+      .catch(() => setCourses([]))
+  }, [])
 
   async function handleApprove(id: string) {
     try {
@@ -95,8 +113,21 @@ export function StudentsPage() {
   }
 
   async function submitNew(values: NewStudentValues) {
-    await studentService.create(values)
+    const { course_ids, ...studentData } = values
+    const created = await studentService.create(studentData)
+    // Inscribir a los cursos elegidos (best-effort: si uno falla por cupo, sigue).
+    let failed = 0
+    for (const courseId of course_ids) {
+      try {
+        await enrollmentService.enroll(created.id, courseId)
+      } catch {
+        failed += 1
+      }
+    }
     await fetchStudents()
+    if (failed > 0) {
+      setError(`El alumno se creó, pero no se pudo inscribir en ${failed} curso(s) (¿cupo lleno?).`)
+    }
   }
 
   async function openEdit(id: string) {
@@ -106,7 +137,8 @@ export function StudentsPage() {
         id,
         values: {
           first_name: d.first_name, last_name: d.last_name, dni: d.dni, email: d.email,
-          phone: d.phone, address: d.address, tutor_name: d.tutor_name, tutor_phone: d.tutor_phone,
+          phone: d.phone, address: d.address, birth_date: d.birth_date,
+          tutor_name: d.tutor_name, tutor_phone: d.tutor_phone,
         },
       })
     } catch (err) {
@@ -118,7 +150,7 @@ export function StudentsPage() {
     if (!editTarget) return
     await studentService.update(editTarget.id, {
       first_name: values.first_name, last_name: values.last_name, dni: values.dni,
-      phone: values.phone, address: values.address,
+      phone: values.phone, address: values.address, birth_date: values.birth_date,
       tutor_name: values.tutor_name, tutor_phone: values.tutor_phone,
     })
     await fetchStudents()
@@ -141,15 +173,59 @@ export function StudentsPage() {
     }
   }
 
+  // Export: trae TODO el listado que matchea el filtro actual (no solo la pagina).
+  async function buildStudentsExport(): Promise<TableExport> {
+    const res = await studentService.list({ search, status: statusFilter, page: 1, page_size: 1000 })
+    const filterParts = [
+      statusFilter ? `Estado: ${STATUS_EXPORT_LABEL[statusFilter] ?? statusFilter}` : 'Todos los estados',
+      search ? `Busqueda: "${search}"` : null,
+    ].filter(Boolean)
+    return {
+      title: 'Listado de estudiantes',
+      subtitle: `${filterParts.join(' · ')} · ${res.data.length} alumno(s)`,
+      head: ['Nombre', 'DNI', 'Email', 'Telefono', 'Cursos', 'Tutor', 'Estado'],
+      body: res.data.map((s) => [
+        `${s.first_name} ${s.last_name}`,
+        s.dni,
+        s.email,
+        s.phone,
+        s.courses,
+        s.tutor_name,
+        STATUS_EXPORT_LABEL[s.status] ?? s.status,
+      ]),
+      filename: 'alumnos',
+      columnWidths: [26, 12, 30, 18, 28, 22, 12],
+    }
+  }
+
+  async function handleExport(kind: 'pdf' | 'xlsx') {
+    setError(null)
+    try {
+      const table = await buildStudentsExport()
+      const { exportTableToPdf, exportTableToXlsx } = await import('@/lib/exportTable')
+      if (kind === 'pdf') exportTableToPdf(table, 'landscape')
+      else await exportTableToXlsx(table)
+    } catch (err) {
+      setError(formatBackendError(err))
+    }
+  }
+
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   return (
     <PageContainer
       title="Gestion de Estudiantes"
       actions={
-        <Button variant="danger" size="md" onClick={() => setNewOpen(true)}>
-          + Nuevo Estudiante
-        </Button>
+        <div className="flex items-center gap-2">
+          <ExportButton
+            onPdf={() => handleExport('pdf')}
+            onXlsx={() => handleExport('xlsx')}
+            disabled={total === 0}
+          />
+          <Button variant="danger" size="md" onClick={() => setNewOpen(true)}>
+            + Nuevo Estudiante
+          </Button>
+        </div>
       }
     >
       <StudentFilters
@@ -200,6 +276,7 @@ export function StudentsPage() {
         isOpen={isNewOpen}
         onClose={() => setNewOpen(false)}
         onSubmit={submitNew}
+        courses={courses}
       />
 
       <EditStudentModal

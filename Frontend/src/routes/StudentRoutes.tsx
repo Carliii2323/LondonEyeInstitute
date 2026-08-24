@@ -6,6 +6,7 @@ import { StudentCalendarPage } from '@/features/student/calendar/StudentCalendar
 import { StudentAttendancePage } from '@/features/student/attendance/StudentAttendancePage'
 import { StudentNotificationsPage } from '@/features/student/notifications/StudentNotificationsPage'
 import { StudentLibretaPage } from '@/features/student/certificates/StudentLibretaPage'
+import { StudentContractPage } from '@/features/student/contract/StudentContractPage'
 import { StudentSettingsPage } from '@/features/student/settings/StudentSettingsPage'
 
 export function studentRoutes() {
@@ -18,6 +19,7 @@ export function studentRoutes() {
       <Route path="asistencia" element={<StudentAttendancePage />} />
       <Route path="notificaciones" element={<StudentNotificationsPage />} />
       <Route path="libreta" element={<StudentLibretaPage />} />
+      <Route path="contrato" element={<StudentContractPage />} />
       <Route path="configuracion" element={<StudentSettingsPage />} />
     </Route>
   )

@@ -1,14 +1,15 @@
 package dto
 
 type TeacherListItem struct {
-	ID        string `json:"id"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Email     string `json:"email"`
-	DNI       string `json:"dni"`
-	Phone     string `json:"phone"`
-	Status    string `json:"status"`
-	CreatedAt string `json:"created_at"`
+	ID           string `json:"id"`
+	FirstName    string `json:"first_name"`
+	LastName     string `json:"last_name"`
+	Email        string `json:"email"`
+	DNI          string `json:"dni"`
+	Phone        string `json:"phone"`
+	CoursesCount int64  `json:"courses_count"`
+	Status       string `json:"status"`
+	CreatedAt    string `json:"created_at"`
 }
 
 type TeacherDetail struct {

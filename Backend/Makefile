@@ -19,9 +19,19 @@ migrate-up:
 	psql "$(DATABASE_URL)" -f migrations/009_payment_method.up.sql
 	psql "$(DATABASE_URL)" -f migrations/010_course_derechos.up.sql
 	psql "$(DATABASE_URL)" -f migrations/011_course_classroom.up.sql
+	psql "$(DATABASE_URL)" -f migrations/012_student_birthdate.up.sql
+	psql "$(DATABASE_URL)" -f migrations/013_email_verification.up.sql
+	psql "$(DATABASE_URL)" -f migrations/014_inbound_receipts.up.sql
+	psql "$(DATABASE_URL)" -f migrations/015_inbound_detected_fields.up.sql
+	psql "$(DATABASE_URL)" -f migrations/016_student_dni_files.up.sql
 
 # migrate-down revierte en orden inverso.
 migrate-down:
+	psql "$(DATABASE_URL)" -f migrations/016_student_dni_files.down.sql
+	psql "$(DATABASE_URL)" -f migrations/015_inbound_detected_fields.down.sql
+	psql "$(DATABASE_URL)" -f migrations/014_inbound_receipts.down.sql
+	psql "$(DATABASE_URL)" -f migrations/013_email_verification.down.sql
+	psql "$(DATABASE_URL)" -f migrations/012_student_birthdate.down.sql
 	psql "$(DATABASE_URL)" -f migrations/011_course_classroom.down.sql
 	psql "$(DATABASE_URL)" -f migrations/010_course_derechos.down.sql
 	psql "$(DATABASE_URL)" -f migrations/009_payment_method.down.sql

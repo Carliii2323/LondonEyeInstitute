@@ -118,7 +118,7 @@ export function StudentLibretaPage() {
           <p className="mt-1 text-small text-surface-400">Aparecerán cuando se carguen tus notas.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
           {filtered.map((l) => {
             const st = statusFor(rows, l.course_id, l.year)
             return (

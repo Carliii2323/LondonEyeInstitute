@@ -1,6 +1,6 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
-import { roleHome } from './RoleRedirect'
+import { roleHome } from './roleHome'
 
 /* ============================================================
  * GuestRoute — Guard inverso: solo para usuarios SIN sesion.

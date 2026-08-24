@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { PageContainer } from '@/components/layout/PageContainer'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
+import { ExportButton } from '@/components/ui/ExportButton'
+import type { TableExport } from '@/lib/exportTable'
 import { AttendanceFilters } from './AttendanceFilters'
 import { AttendanceHistoryModal } from './AttendanceHistoryModal'
 import { AttendanceStats } from '@/features/shared/attendance/AttendanceStats'
@@ -161,6 +163,24 @@ export function AttendancePage({ scope = 'admin' }: AttendancePageProps) {
   const { sheetStudents, sheetClasses } = useMemo(() => buildSheet(annual), [annual])
   const termAbsences = useMemo(() => buildAbsencesByTerm(annual), [annual])
 
+  function buildAbsencesExport(): TableExport {
+    return {
+      title: 'Inasistencias por termino',
+      subtitle: `${courseName} · Ano ${year}`,
+      head: ['Alumno', '1er Termino (Feb-Jun)', '2do Termino (Jul-Nov)', 'Total'],
+      body: termAbsences.map((r) => [r.name, r.t1, r.t2, r.total]),
+      filename: 'inasistencias',
+      columnWidths: [30, 20, 20, 10],
+    }
+  }
+
+  async function handleAbsencesExport(kind: 'pdf' | 'xlsx') {
+    const table = buildAbsencesExport()
+    const { exportTableToPdf, exportTableToXlsx } = await import('@/lib/exportTable')
+    if (kind === 'pdf') exportTableToPdf(table, 'portrait')
+    else await exportTableToXlsx(table)
+  }
+
   return (
     <PageContainer title="Asistencia">
       <div className="flex flex-col gap-4">
@@ -263,9 +283,16 @@ export function AttendancePage({ scope = 'admin' }: AttendancePageProps) {
 
             {showAnnual && termAbsences.length > 0 && (
               <div className="bg-white rounded-card shadow-card overflow-hidden">
-                <div className="p-5 pb-4 border-b border-surface-100">
-                  <h2 className="font-heading text-section-title text-surface-900">Inasistencias por término</h2>
-                  <p className="text-small text-surface-500 mt-0.5">Ausentes por período (no incluye justificadas). El total es del año completo — Año {year}</p>
+                <div className="p-5 pb-4 border-b border-surface-100 flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="font-heading text-section-title text-surface-900">Inasistencias por término</h2>
+                    <p className="text-small text-surface-500 mt-0.5">Ausentes por período (no incluye justificadas). El total es del año completo — Año {year}</p>
+                  </div>
+                  <ExportButton
+                    onPdf={() => handleAbsencesExport('pdf')}
+                    onXlsx={() => handleAbsencesExport('xlsx')}
+                    disabled={termAbsences.length === 0}
+                  />
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">

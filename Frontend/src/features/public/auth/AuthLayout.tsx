@@ -24,6 +24,14 @@ export function AuthLayout({ imageSrc, children }: AuthLayoutProps) {
 
       <div className="flex min-h-screen items-center justify-center px-5 py-6 lg:px-10 lg:py-8">
         <div className="w-full max-w-lg rounded-[1.25rem] border border-white/70 bg-white/95 p-6 shadow-dropdown backdrop-blur sm:p-8">
+          {/* Marca del instituto */}
+          <div className="mb-6 flex items-center justify-center gap-3">
+            <img src="/london-eye-logo.png" alt="London Eye School Institute" className="h-11 w-auto" />
+            <span className="font-heading text-lg font-bold leading-tight text-surface-900">
+              London Eye<br />School Institute
+            </span>
+          </div>
+
           {children}
         </div>
       </div>

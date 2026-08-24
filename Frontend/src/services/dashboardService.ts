@@ -15,7 +15,8 @@ export interface DashboardStats {
   active_courses: number
   active_teachers: number
   collected: string // cuotas mensuales aprobadas del mes
-  pending_amount: string // pending + overdue del mes (con recargo)
+  pending_amount: string // cuotas 'pending' del mes, por vencer (con recargo)
+  overdue_amount: string // cuotas 'overdue' del mes, en mora (con recargo)
   other_collected: string // cargos adicionales aprobados del mes
 }
 
@@ -36,6 +37,12 @@ export interface UpcomingEventItem {
   course_name?: string
 }
 
+/** Punto de la serie mensual de inscripciones — GET /admin/dashboard/enrollments-series */
+export interface EnrollmentPoint {
+  month: string // "YYYY-MM"
+  count: number
+}
+
 export const dashboardService = {
   stats(month: number, year: number) {
     return httpClient.get<DashboardStats>(`/admin/dashboard/stats?month=${month}&year=${year}`)
@@ -47,5 +54,9 @@ export const dashboardService = {
 
   events(limit = 5) {
     return httpClient.get<UpcomingEventItem[]>(`/admin/dashboard/events?limit=${limit}`)
+  },
+
+  enrollmentsSeries(months = 6) {
+    return httpClient.get<EnrollmentPoint[]>(`/admin/dashboard/enrollments-series?months=${months}`)
   },
 }

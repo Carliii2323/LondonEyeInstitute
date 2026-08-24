@@ -59,6 +59,17 @@ func setupSchema(dsn string) error {
 		"../../migrations/003_late_fee_percentage_check.up.sql",
 		"../../migrations/004_simplify_grades.up.sql",
 		"../../migrations/005_certificate_hours.up.sql",
+		"../../migrations/006_libreta_requests.up.sql",
+		"../../migrations/007_payment_anulado.up.sql",
+		"../../migrations/008_payment_derechos.up.sql",
+		"../../migrations/009_payment_method.up.sql",
+		"../../migrations/010_course_derechos.up.sql",
+		"../../migrations/011_course_classroom.up.sql",
+		"../../migrations/012_student_birthdate.up.sql",
+		"../../migrations/013_email_verification.up.sql",
+		"../../migrations/014_inbound_receipts.up.sql",
+		"../../migrations/015_inbound_detected_fields.up.sql",
+		"../../migrations/016_student_dni_files.up.sql",
 	} {
 		sql, err := os.ReadFile(f)
 		if err != nil {

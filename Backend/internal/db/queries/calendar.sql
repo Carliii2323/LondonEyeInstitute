@@ -9,7 +9,7 @@ WHERE teacher_id = $1;
 -- name: ListEventsByMonth :many
 SELECT
     e.id, e.title, e.type, e.date, e.start_time, e.end_time, e.message,
-    e.course_id, e.created_at,
+    e.course_id, e.created_by, e.created_at,
     c.name AS course_name
 FROM calendar_events e
 LEFT JOIN courses c ON e.course_id = c.id
@@ -20,7 +20,7 @@ ORDER BY e.date, e.start_time NULLS FIRST;
 -- name: ListEventsByMonthForCourses :many
 SELECT
     e.id, e.title, e.type, e.date, e.start_time, e.end_time, e.message,
-    e.course_id, e.created_at,
+    e.course_id, e.created_by, e.created_at,
     c.name AS course_name
 FROM calendar_events e
 LEFT JOIN courses c ON e.course_id = c.id
@@ -42,3 +42,6 @@ WHERE id = $1;
 
 -- name: DeleteEvent :execrows
 DELETE FROM calendar_events WHERE id = $1;
+
+-- name: GetEventByID :one
+SELECT id, created_by, course_id FROM calendar_events WHERE id = $1 LIMIT 1;

@@ -18,6 +18,25 @@ type Config struct {
 	StorageDriver          string
 	StoragePath            string
 	AllowedOrigins         string
+
+	// AppURL — base pública del frontend, para armar links de emails
+	// (ej. link de verificación de cuenta). Ej: https://app.londoneye.com
+	AppURL string
+
+	// SMTP — envío de correo saliente (verificación de cuenta, etc.).
+	// Si SMTPHost está vacío, el mailer usa el fallback de log (no envía).
+	SMTPHost string
+	SMTPPort int
+	SMTPUser string
+	SMTPPass string
+	SMTPFrom string
+
+	// IMAP — recepción de comprobantes por mail (fase B).
+	// Si IMAPHost está vacío, el poller no se registra.
+	IMAPHost           string
+	IMAPUser           string
+	IMAPPass           string
+	InboundPollMinutes int
 }
 
 func Load() *Config {
@@ -35,6 +54,19 @@ func Load() *Config {
 		StorageDriver:          getEnv("STORAGE_DRIVER", "local"),
 		StoragePath:            getEnv("STORAGE_PATH", "./uploads"),
 		AllowedOrigins:         getEnv("ALLOWED_ORIGINS", "http://localhost:5173"),
+
+		AppURL: getEnv("APP_URL", "http://localhost:5173"),
+
+		SMTPHost: getEnv("SMTP_HOST", ""),
+		SMTPPort: getEnvInt("SMTP_PORT", 587),
+		SMTPUser: getEnv("SMTP_USER", ""),
+		SMTPPass: getEnv("SMTP_PASS", ""),
+		SMTPFrom: getEnv("SMTP_FROM", ""),
+
+		IMAPHost:           getEnv("IMAP_HOST", ""),
+		IMAPUser:           getEnv("IMAP_USER", ""),
+		IMAPPass:           getEnv("IMAP_PASS", ""),
+		InboundPollMinutes: getEnvInt("INBOUND_POLL_MINUTES", 5),
 	}
 }
 

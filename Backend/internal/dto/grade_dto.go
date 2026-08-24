@@ -44,7 +44,7 @@ type UpsertGradeItem struct {
 type UpsertMakeupItem struct {
 	StudentID string  `json:"student_id" binding:"required"`
 	Term      int     `json:"term"       binding:"required,oneof=1 2"`
-	Score     float64 `json:"score"      binding:"required,min=0,max=10"`
+	Score     float64 `json:"score"      binding:"min=0,max=10"`
 	TakenAt   string  `json:"taken_at"`
 }
 

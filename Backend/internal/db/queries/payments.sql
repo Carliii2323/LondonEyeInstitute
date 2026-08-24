@@ -210,3 +210,13 @@ FROM institute_settings s
 WHERE s.id = 1
   AND p.status = 'pending'
   AND p.due_date + (s.grace_days || ' days')::interval < CURRENT_DATE;
+
+-- name: ListOpenPaymentsByStudent :many
+-- Pagos "abiertos" de un alumno (aceptan comprobante). Para sugerir a qué
+-- cuota vincular un comprobante recibido por mail.
+SELECT p.id, c.name AS course_name, p.type, p.month, p.year,
+       (p.amount + p.late_fee_applied)::numeric AS total, p.due_date, p.status
+FROM payments p
+JOIN courses c ON c.id = p.course_id
+WHERE p.student_id = $1 AND p.status IN ('pending', 'overdue', 'rejected')
+ORDER BY p.due_date;

@@ -24,3 +24,8 @@ VALUES ($1, $2, $3, $4, $5, $6)
 ON CONFLICT (student_id, course_id, year, term) DO UPDATE SET
     score    = EXCLUDED.score,
     taken_at = EXCLUDED.taken_at;
+
+-- name: GetMakeupsForCertificate :many
+SELECT term, score
+FROM grade_makeups
+WHERE student_id = $1 AND course_id = $2 AND year = $3;

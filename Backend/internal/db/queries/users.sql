@@ -1,10 +1,10 @@
 -- name: GetUserByEmail :one
-SELECT id, email, password_hash, role, first_name, last_name, phone, avatar_url, status, created_at, updated_at
+SELECT id, email, password_hash, role, first_name, last_name, phone, avatar_url, status, created_at, updated_at, email_verified
 FROM users
 WHERE email = $1 LIMIT 1;
 
 -- name: GetUserByID :one
-SELECT id, email, password_hash, role, first_name, last_name, phone, avatar_url, status, created_at, updated_at
+SELECT id, email, password_hash, role, first_name, last_name, phone, avatar_url, status, created_at, updated_at, email_verified
 FROM users
 WHERE id = $1 LIMIT 1;
 
@@ -25,7 +25,7 @@ WHERE id = $1;
 UPDATE users
 SET first_name = $2, last_name = $3, phone = $4, updated_at = NOW()
 WHERE id = $1
-RETURNING id, email, password_hash, role, first_name, last_name, phone, avatar_url, status, created_at, updated_at;
+RETURNING id, email, password_hash, role, first_name, last_name, phone, avatar_url, status, created_at, updated_at, email_verified;
 
 -- name: UpdateUserPassword :exec
 UPDATE users
@@ -36,4 +36,4 @@ WHERE id = $1;
 UPDATE users
 SET avatar_url = $2, updated_at = NOW()
 WHERE id = $1
-RETURNING id, email, password_hash, role, first_name, last_name, phone, avatar_url, status, created_at, updated_at;
+RETURNING id, email, password_hash, role, first_name, last_name, phone, avatar_url, status, created_at, updated_at, email_verified;

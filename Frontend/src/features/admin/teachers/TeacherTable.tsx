@@ -31,7 +31,7 @@ export function TeacherTable({ teachers, onViewTeacher, onEditTeacher, onDropTea
       <table className="w-full">
         <thead>
           <tr className="bg-surface-50/50 border-b border-surface-100">
-            {['Nombre', 'DNI', 'Contacto', 'Estado', 'Acciones'].map((h) => (
+            {['Nombre', 'DNI', 'Contacto', 'Cursos', 'Estado', 'Acciones'].map((h) => (
               <th key={h} className="px-5 py-3 text-left text-small font-semibold text-surface-500 uppercase tracking-wider">
                 {h}
               </th>
@@ -59,6 +59,7 @@ export function TeacherTable({ teachers, onViewTeacher, onEditTeacher, onDropTea
                   </td>
                   <td className="px-5 py-4 text-body text-surface-600 whitespace-nowrap">{teacher.dni}</td>
                   <td className="px-5 py-4 text-body text-surface-600">{teacher.email}</td>
+                  <td className="px-5 py-4 text-body text-surface-600">{teacher.courses_count}</td>
                   <td className="px-5 py-4">
                     <Badge variant={status.variant}>{status.label}</Badge>
                   </td>

@@ -3,6 +3,7 @@ import { GuestRoute } from './GuestRoute'
 import { LoginPage } from '@/features/public/auth/LoginPage'
 import { RegisterPage } from '@/features/public/auth/RegisterPage'
 import { RequestPendingPage } from '@/features/public/auth/RequestPendingPage'
+import { VerifyEmailPage } from '@/features/public/auth/VerifyEmailPage'
 
 /* ============================================================
  * PublicRoutes — Rutas sin autenticacion
@@ -19,6 +20,7 @@ export function publicRoutes() {
         <Route path="registro" element={<RegisterPage />} />
       </Route>
       <Route path="solicitud-pendiente" element={<RequestPendingPage />} />
+      <Route path="verificar-email" element={<VerifyEmailPage />} />
     </>
   )
 }

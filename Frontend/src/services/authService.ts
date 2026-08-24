@@ -1,4 +1,4 @@
-import type { AuthResponse, AuthUser, RegisterRequest, StatusResponse } from '@/types'
+import type { AuthResponse, AuthUser, StatusResponse } from '@/types'
 import { httpClient } from './httpClient'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -19,9 +19,20 @@ export const authService = {
     )
   },
 
-  /** POST /auth/register — auto-registro de estudiante (queda pending). */
-  register(data: RegisterRequest) {
+  /** POST /auth/register — auto-registro de estudiante (queda pending).
+   *  Es multipart/form-data: campos del alumno + el frente del DNI (`dni_front`). */
+  register(data: FormData) {
     return httpClient.post<StatusResponse>('/auth/register', data, { skipRefresh: true })
+  },
+
+  /** POST /auth/verify-email — confirma el email con el token del link (F1). */
+  verifyEmail(token: string) {
+    return httpClient.post<StatusResponse>('/auth/verify-email', { token }, { skipRefresh: true })
+  },
+
+  /** POST /auth/resend-verification — reenvia el mail de verificacion. */
+  resendVerification(email: string) {
+    return httpClient.post<StatusResponse>('/auth/resend-verification', { email }, { skipRefresh: true })
   },
 
   /** GET /auth/me — usuario del token actual (para el bootstrap de sesion). */

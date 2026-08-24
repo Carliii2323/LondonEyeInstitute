@@ -29,15 +29,20 @@ export const calendarService = {
     return httpClient.get<CalendarEvent[]>(`/calendar/events?month=${month}&year=${year}`)
   },
 
-  create(input: CreateEventInput) {
-    return httpClient.post<{ id: string }>('/admin/calendar/events', input)
+  create(input: CreateEventInput, asTeacher = false) {
+    return httpClient.post<{ id: string }>(base(asTeacher), input)
   },
 
-  update(id: string, input: CreateEventInput) {
-    return httpClient.put<StatusResponse>(`/admin/calendar/events/${id}`, input)
+  update(id: string, input: CreateEventInput, asTeacher = false) {
+    return httpClient.put<StatusResponse>(`${base(asTeacher)}/${id}`, input)
   },
 
-  remove(id: string) {
-    return httpClient.delete<StatusResponse>(`/admin/calendar/events/${id}`)
+  remove(id: string, asTeacher = false) {
+    return httpClient.delete<StatusResponse>(`${base(asTeacher)}/${id}`)
   },
+}
+
+/** El profe usa sus propias rutas (solo sus cursos / sus eventos). */
+function base(asTeacher: boolean) {
+  return asTeacher ? '/teacher/calendar/events' : '/admin/calendar/events'
 }

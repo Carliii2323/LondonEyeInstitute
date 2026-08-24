@@ -90,7 +90,7 @@ export function StudentPaymentsPage() {
                           <span className="text-small text-accent-600 italic basis-full">Rechazado: {p.rejection_reason}</span>
                         )}
                       </div>
-                      <Button variant="danger" size="sm" onClick={() => setPayTarget(p)}>
+                      <Button variant="danger" size="sm" onClick={() => setPayTarget(p)} className="w-full sm:w-auto">
                         Subir comprobante
                       </Button>
                     </div>
@@ -106,7 +106,7 @@ export function StudentPaymentsPage() {
               <h2 className="font-heading text-section-title text-surface-900">Mis Cuotas</h2>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="hidden lg:block overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="bg-surface-50/50 border-y border-surface-100">
@@ -158,6 +158,60 @@ export function StudentPaymentsPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile: cuotas como cards apiladas */}
+            <div className="lg:hidden flex flex-col gap-3 px-4 pb-4">
+              {payments.length === 0 ? (
+                <p className="py-8 text-center text-body text-surface-400">No tenes cuotas registradas.</p>
+              ) : (
+                payments.map((p) => {
+                  const badge = statusBadge(p.status)
+                  const isOverdue = p.status === 'overdue'
+                  return (
+                    <div key={`m-${p.id}`} className={`rounded-card border border-surface-100 p-4 ${isOverdue ? 'bg-accent-50/40' : 'bg-surface-50'}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <h3 className="text-body font-semibold text-surface-900 truncate">{p.course_name}</h3>
+                          <p className="text-small text-surface-500 mt-0.5">{periodLabel(p.month, p.year)} · {typeLabel(p.type)}</p>
+                        </div>
+                        <Badge variant={badge.variant}>{badge.label}</Badge>
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between gap-2">
+                        <div>
+                          <p className="text-small text-surface-400">Monto</p>
+                          <p className="text-body font-bold text-surface-900">{formatMoney(p.total)}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-small text-surface-400">Vencimiento</p>
+                          <p className="text-body text-surface-600">{formatDateOnly(p.due_date)}</p>
+                        </div>
+                      </div>
+
+                      {(canUpload(p.status) || p.receipt_url || p.status === 'approved') && (
+                        <div className="mt-3 flex flex-wrap items-center gap-4 border-t border-surface-100 pt-3">
+                          {canUpload(p.status) && (
+                            <button onClick={() => setPayTarget(p)} className="text-small font-medium text-royal-500 hover:text-royal-600 transition-colors">
+                              Subir comprobante
+                            </button>
+                          )}
+                          {p.receipt_url && (
+                            <button onClick={() => studentPaymentService.openReceipt(p.id)} className="text-small font-medium text-surface-600 hover:text-surface-800 transition-colors">
+                              Ver comprobante
+                            </button>
+                          )}
+                          {p.status === 'approved' && (
+                            <button onClick={() => setReceiptTarget(p)} className="text-small font-medium text-emerald-600 hover:text-emerald-700 transition-colors">
+                              Recibo
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })
+              )}
             </div>
           </div>
         </>

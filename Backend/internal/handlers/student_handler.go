@@ -1,25 +1,27 @@
 package handlers
 
 import (
+	"io"
 	"net/http"
 	"strconv"
 
 	"sge-london-eye/internal/dto"
 	"sge-london-eye/internal/services"
+	"sge-london-eye/internal/storage"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type StudentHandler struct {
-	svc        *services.StudentService
-	gradeSvc   *services.GradeService
-	attendSvc  *services.AttendanceService
+	svc       *services.StudentService
+	gradeSvc  *services.GradeService
+	attendSvc *services.AttendanceService
 }
 
-func NewStudentHandler(pool *pgxpool.Pool) *StudentHandler {
+func NewStudentHandler(pool *pgxpool.Pool, store storage.Storage) *StudentHandler {
 	return &StudentHandler{
-		svc:       services.NewStudentService(pool),
+		svc:       services.NewStudentService(pool, store),
 		gradeSvc:  services.NewGradeService(pool),
 		attendSvc: services.NewAttendanceService(pool),
 	}
@@ -42,6 +44,33 @@ func (h *StudentHandler) List(c *gin.Context) {
 func (h *StudentHandler) GetByID(c *gin.Context) {
 	id := c.Param("id")
 	student, err := h.svc.GetByID(c.Request.Context(), id)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, student)
+}
+
+// GetMe — GET /student/profile (el alumno autenticado ve sus propios datos:
+// dni, domicilio, tutor, etc. — para pre-cargar el contrato).
+func (h *StudentHandler) GetMe(c *gin.Context) {
+	student, err := h.svc.GetByID(c.Request.Context(), c.GetString("userID"))
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, student)
+}
+
+// UpdateMyAddress — PUT /student/profile/address (el alumno edita su dirección, F9).
+func (h *StudentHandler) UpdateMyAddress(c *gin.Context) {
+	var req dto.UpdateMyAddressRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondValidationError(c, err)
+		return
+	}
+
+	student, err := h.svc.UpdateMyAddress(c.Request.Context(), c.GetString("userID"), req.Address)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -99,6 +128,42 @@ func (h *StudentHandler) Approve(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, dto.StatusResponse{Message: "estudiante aprobado"})
+}
+
+// UploadDni — POST /admin/students/:id/dni/:side (side = front|back)
+func (h *StudentHandler) UploadDni(c *gin.Context) {
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ApiError{Error: "campo 'file' requerido"})
+		return
+	}
+	defer file.Close()
+
+	const maxSize = 5 << 20 // 5 MB
+	if header.Size > maxSize {
+		c.JSON(http.StatusBadRequest, dto.ApiError{Error: "el archivo supera el límite de 5 MB"})
+		return
+	}
+	data, err := io.ReadAll(file)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.ApiError{Error: "error al leer el archivo"})
+		return
+	}
+	if err := h.svc.UploadDni(c.Request.Context(), c.Param("id"), c.Param("side"), data, header.Filename); err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, dto.StatusResponse{Message: "archivo del DNI guardado"})
+}
+
+// GetDni — GET /admin/students/:id/dni/:side (stream autenticado)
+func (h *StudentHandler) GetDni(c *gin.Context) {
+	data, filename, err := h.svc.GetDni(c.Request.Context(), c.Param("id"), c.Param("side"))
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	serveFile(c, data, filename)
 }
 
 func (h *StudentHandler) GetGrades(c *gin.Context) {

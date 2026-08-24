@@ -66,7 +66,7 @@ export function StudentHomePage() {
   return (
     <div className="flex flex-col gap-6">
       {/* Banner */}
-      <div className="relative bg-navy-500 rounded-card p-8 overflow-hidden">
+      <div className="relative bg-navy-500 rounded-card p-6 sm:p-8 overflow-hidden">
         <div className="absolute top-0 right-0 w-48 h-48 rounded-full bg-navy-400/15 -mr-12 -mt-12" />
         <div className="relative">
           <h1 className="font-heading text-page-title text-white">
@@ -98,7 +98,7 @@ export function StudentHomePage() {
               {latestAnnouncements.map((a) => (
                 <div key={a.id} className="relative py-4 pl-4 first:pt-0 last:pb-0">
                   <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-full ${TYPE_BAR[a.type] ?? 'bg-surface-300'}`} />
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                     <div className="min-w-0">
                       <h3 className="text-body font-semibold text-surface-900">{a.title}</h3>
                       <p className="text-small text-surface-500 mt-0.5">{a.message}</p>

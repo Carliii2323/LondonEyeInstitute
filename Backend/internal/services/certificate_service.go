@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"math"
 
 	dbsqlc "sge-london-eye/internal/db/sqlc"
 	"sge-london-eye/internal/dto"
@@ -71,11 +72,19 @@ func (s *CertificateService) Issue(ctx context.Context, req dto.IssueCertificate
 		return nil, &NotEligibleError{UnpaidCount: total, ByStatus: byStatus}
 	}
 
+	// Promedio automático: se calcula de las notas del año (no se carga a mano).
+	// Ante error de base, abortar la emisión: mejor no emitir que emitir con un
+	// promedio mal calculado en un documento oficial.
+	avgGrade, err := s.computeAverage(ctx, q, studentID, courseID, int32(req.Year))
+	if err != nil {
+		return nil, err
+	}
+
 	id, err := q.InsertCertificate(ctx, dbsqlc.InsertCertificateParams{
 		StudentID:       studentID,
 		CourseID:        courseID,
 		Year:            int32(req.Year),
-		AvgGrade:        float64PtrToNumeric(req.AvgGrade),
+		AvgGrade:        float64PtrToNumeric(avgGrade),
 		AttendancePct:   float64PtrToNumeric(req.AttendancePct),
 		PresentialHours: intPtrToInt4(req.PresentialHours),
 	})
@@ -87,6 +96,82 @@ func (s *CertificateService) Issue(ctx context.Context, req dto.IssueCertificate
 	}
 
 	return s.GetByID(ctx, uuidToString(id), adminID, "admin")
+}
+
+// computeAverage calcula el promedio del certificado con la convención de la
+// planilla (gradeCalc): nota de término = promedio de R/L/S/W (el recuperatorio
+// del término lo reemplaza), TOTAL = promedio de las notas de término, todo
+// redondeado a entero (0-10). Se devuelve como porcentaje (x10) para el
+// certificado. (nil, nil) si el alumno genuinamente no tiene notas ese año;
+// (nil, error) si falla la consulta — para no confundir "sin notas" con "falló".
+func (s *CertificateService) computeAverage(ctx context.Context, q *dbsqlc.Queries, studentID, courseID pgtype.UUID, year int32) (*float64, error) {
+	grades, err := q.GetGradesForCertificate(ctx, dbsqlc.GetGradesForCertificateParams{
+		StudentID: studentID, CourseID: courseID, Year: year,
+	})
+	if err != nil {
+		return nil, apperror.New(apperror.ErrInternal, "error al calcular el promedio", "AVG_ERROR")
+	}
+	makeups, err := q.GetMakeupsForCertificate(ctx, dbsqlc.GetMakeupsForCertificateParams{
+		StudentID: studentID, CourseID: courseID, Year: year,
+	})
+	if err != nil {
+		return nil, apperror.New(apperror.ErrInternal, "error al calcular el promedio", "AVG_ERROR")
+	}
+
+	makeupByTerm := make(map[int32]float64)
+	for _, m := range makeups {
+		if v, ok := numericToFloat(m.Score); ok {
+			makeupByTerm[m.Term] = v
+		}
+	}
+	gradesByTerm := make(map[int32]dbsqlc.GetGradesForCertificateRow)
+	for _, g := range grades {
+		gradesByTerm[g.Term] = g
+	}
+
+	var termGrades []float64
+	for _, term := range []int32{1, 2} {
+		if mv, ok := makeupByTerm[term]; ok {
+			termGrades = append(termGrades, math.Round(mv)) // el recuperatorio reemplaza el término
+			continue
+		}
+		g, ok := gradesByTerm[term]
+		if !ok {
+			continue
+		}
+		var sum float64
+		var n int
+		for _, sk := range []pgtype.Numeric{g.Reading, g.Listening, g.Speaking, g.Writing} {
+			if v, ok := numericToFloat(sk); ok {
+				sum += v
+				n++
+			}
+		}
+		if n > 0 {
+			termGrades = append(termGrades, math.Round(sum/float64(n)))
+		}
+	}
+
+	if len(termGrades) == 0 {
+		return nil, nil // sin notas cargadas: certificado sin promedio (caso legítimo)
+	}
+	var total float64
+	for _, tg := range termGrades {
+		total += tg
+	}
+	pct := math.Round(total/float64(len(termGrades))) * 10 // TOTAL (0-10) -> % del certificado
+	return &pct, nil
+}
+
+func numericToFloat(n pgtype.Numeric) (float64, bool) {
+	if !n.Valid {
+		return 0, false
+	}
+	f, err := n.Float64Value()
+	if err != nil || !f.Valid {
+		return 0, false
+	}
+	return f.Float64, true
 }
 
 func (s *CertificateService) List(ctx context.Context) ([]dto.CertificateItem, error) {

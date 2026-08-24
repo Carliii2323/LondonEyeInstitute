@@ -233,3 +233,110 @@ func assertStatus(t *testing.T, pool *pgxpool.Pool, id pgtype.UUID, want string)
 		t.Errorf("status = %q; want %q", status, want)
 	}
 }
+
+// 5. Notas end-to-end (B33): guardar (admin) → leer como admin y como alumno →
+//    upsert idempotente → validaciones (nota fuera de rango, alumno no inscripto).
+func TestGrades_SaveAndRead(t *testing.T) {
+	pool := requireDB(t)
+	cleanTables(t, pool)
+	ctx := context.Background()
+
+	courseID := seedCourse(t, pool, "Curso Notas", 30, "5000.00")
+	studentID := seedStudent(t, pool, "g@test.com", "700")
+	if _, err := pool.Exec(ctx, `INSERT INTO enrollments (student_id, course_id, status) VALUES ($1,$2,'active')`,
+		mustUUID(t, studentID), mustUUID(t, courseID)); err != nil {
+		t.Fatalf("seed enrollment: %v", err)
+	}
+
+	grades := NewGradeService(pool)
+	year := 2026
+	f := func(v float64) *float64 { return &v }
+
+	// Guardar: term1 R/L/S/W = 8 y term2 = 6, + recuperatorio del term2.
+	req := dto.SaveGradesRequest{
+		CourseID: courseID,
+		Year:     year,
+		Grades: []dto.UpsertGradeItem{
+			{StudentID: studentID, Term: 1, Reading: f(8), Listening: f(8), Speaking: f(8), Writing: f(8)},
+			{StudentID: studentID, Term: 2, Reading: f(6), Listening: f(6), Speaking: f(6), Writing: f(6)},
+		},
+		Makeups: []dto.UpsertMakeupItem{
+			{StudentID: studentID, Term: 2, Score: 9, TakenAt: "2026-12-15"},
+		},
+	}
+	if err := grades.Save(ctx, req, "", "admin"); err != nil {
+		t.Fatalf("save grades: %v", err)
+	}
+
+	// Leer como admin
+	adminResp, err := grades.GetByCourseAndYear(ctx, courseID, year, "", "admin")
+	if err != nil {
+		t.Fatalf("get by course: %v", err)
+	}
+	if len(adminResp.Grades) != 2 {
+		t.Fatalf("grades (admin) = %d; want 2", len(adminResp.Grades))
+	}
+	if len(adminResp.Makeups) != 1 {
+		t.Fatalf("makeups (admin) = %d; want 1", len(adminResp.Makeups))
+	}
+	var term1 *dto.GradeRowDTO
+	for i := range adminResp.Grades {
+		if adminResp.Grades[i].Term == 1 {
+			term1 = &adminResp.Grades[i]
+		}
+	}
+	if term1 == nil || term1.Reading == nil || *term1.Reading != 8 {
+		t.Errorf("term1 reading = %v; want 8", term1)
+	}
+
+	// Leer como alumno (incluye course_name)
+	myResp, err := grades.GetMyGrades(ctx, studentID)
+	if err != nil {
+		t.Fatalf("get my grades: %v", err)
+	}
+	if len(myResp.Grades) != 2 {
+		t.Errorf("grades (alumno) = %d; want 2", len(myResp.Grades))
+	}
+	if len(myResp.Makeups) != 1 {
+		t.Errorf("makeups (alumno) = %d; want 1", len(myResp.Makeups))
+	}
+	if len(myResp.Grades) > 0 && myResp.Grades[0].CourseName != "Curso Notas" {
+		t.Errorf("course_name (alumno) = %q; want Curso Notas", myResp.Grades[0].CourseName)
+	}
+
+	// Upsert idempotente: re-guardar term1 → sigue habiendo 2 filas de nota
+	req2 := dto.SaveGradesRequest{
+		CourseID: courseID, Year: year,
+		Grades: []dto.UpsertGradeItem{
+			{StudentID: studentID, Term: 1, Reading: f(10), Listening: f(10), Speaking: f(10), Writing: f(10)},
+		},
+	}
+	if err := grades.Save(ctx, req2, "", "admin"); err != nil {
+		t.Fatalf("save grades (upsert): %v", err)
+	}
+	adminResp2, _ := grades.GetByCourseAndYear(ctx, courseID, year, "", "admin")
+	if len(adminResp2.Grades) != 2 {
+		t.Errorf("tras upsert grades = %d; want 2 (no duplica)", len(adminResp2.Grades))
+	}
+
+	var appErr *apperror.AppError
+
+	// Nota fuera de rango (> 10) → INVALID_SCORE
+	reqBad := dto.SaveGradesRequest{
+		CourseID: courseID, Year: year,
+		Grades: []dto.UpsertGradeItem{{StudentID: studentID, Term: 1, Reading: f(11)}},
+	}
+	if err := grades.Save(ctx, reqBad, "", "admin"); !errors.As(err, &appErr) || appErr.Code != "INVALID_SCORE" {
+		t.Errorf("se esperaba INVALID_SCORE, se obtuvo: %v", err)
+	}
+
+	// Alumno no inscripto → NOT_ENROLLED
+	otherStudent := seedStudent(t, pool, "h@test.com", "701")
+	reqNotEnrolled := dto.SaveGradesRequest{
+		CourseID: courseID, Year: year,
+		Grades: []dto.UpsertGradeItem{{StudentID: otherStudent, Term: 1, Reading: f(7)}},
+	}
+	if err := grades.Save(ctx, reqNotEnrolled, "", "admin"); !errors.As(err, &appErr) || appErr.Code != "NOT_ENROLLED" {
+		t.Errorf("se esperaba NOT_ENROLLED, se obtuvo: %v", err)
+	}
+}

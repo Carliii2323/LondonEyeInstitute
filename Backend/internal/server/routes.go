@@ -7,6 +7,7 @@ import (
 	"sge-london-eye/internal/config"
 	"sge-london-eye/internal/cron"
 	"sge-london-eye/internal/handlers"
+	"sge-london-eye/internal/mailer"
 	"sge-london-eye/internal/middleware"
 	"sge-london-eye/internal/storage"
 
@@ -14,7 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func (s *Server) registerRoutes(cfg *config.Config, pool *pgxpool.Pool, runner *cron.Runner) {
+func (s *Server) registerRoutes(cfg *config.Config, pool *pgxpool.Pool, runner *cron.Runner, mail mailer.Sender) {
 	api := s.engine.Group("/api/v1")
 
 	api.GET("/health", func(c *gin.Context) {
@@ -28,10 +29,12 @@ func (s *Server) registerRoutes(cfg *config.Config, pool *pgxpool.Pool, runner *
 	// Auth — rutas públicas
 	auth := api.Group("/auth")
 	{
-		h := handlers.NewAuthHandler(pool, cfg)
+		h := handlers.NewAuthHandler(pool, cfg, mail, storage.NewLocalStorage(cfg.StoragePath, "/uploads"))
 		auth.POST("/register", h.Register)
 		auth.POST("/login", h.Login)
 		auth.POST("/refresh", h.Refresh)
+		auth.POST("/verify-email", h.VerifyEmail)
+		auth.POST("/resend-verification", h.ResendVerification)
 		auth.POST("/logout", middleware.Auth(cfg), h.Logout)
 		auth.GET("/me", middleware.Auth(cfg), h.Me)
 	}
@@ -39,7 +42,7 @@ func (s *Server) registerRoutes(cfg *config.Config, pool *pgxpool.Pool, runner *
 	// Admin — estudiantes
 	admin := api.Group("/admin", middleware.Auth(cfg), middleware.RequireRole("admin"))
 	{
-		sh := handlers.NewStudentHandler(pool)
+		sh := handlers.NewStudentHandler(pool, storage.NewLocalStorage(cfg.StoragePath, "/uploads"))
 		students := admin.Group("/students")
 		students.GET("", sh.List)
 		students.GET("/:id", sh.GetByID)
@@ -49,6 +52,8 @@ func (s *Server) registerRoutes(cfg *config.Config, pool *pgxpool.Pool, runner *
 		students.PATCH("/:id/approve", sh.Approve)
 		students.GET("/:id/grades", sh.GetGrades)
 		students.GET("/:id/attendance", sh.GetAttendance)
+		students.POST("/:id/dni/:side", sh.UploadDni)
+		students.GET("/:id/dni/:side", sh.GetDni)
 
 		th := handlers.NewTeacherHandler(pool)
 		teachers := admin.Group("/teachers")
@@ -61,11 +66,15 @@ func (s *Server) registerRoutes(cfg *config.Config, pool *pgxpool.Pool, runner *
 		ch := handlers.NewCourseHandler(pool)
 		courses := admin.Group("/courses")
 		courses.GET("", ch.List)
+		courses.GET("/stats", ch.Stats)
 		courses.GET("/:id", ch.GetByID)
 		courses.POST("", ch.Create)
 		courses.PUT("/:id", ch.Update)
 		courses.PATCH("/:id/status", ch.UpdateStatus)
 		courses.GET("/:id/students", ch.ListStudents)
+
+		// Cursos de un docente (para el detalle del docente en admin)
+		admin.GET("/teachers/:id/courses", ch.ListByTeacherID)
 
 		eh := handlers.NewEnrollmentHandler(pool)
 		enrollments := admin.Group("/enrollments")
@@ -90,6 +99,15 @@ func (s *Server) registerRoutes(cfg *config.Config, pool *pgxpool.Pool, runner *
 
 		// Sub-recurso: pagos de un alumno (pendiente de Sprint 2)
 		admin.GET("/students/:id/payments", ph.ListByStudentParam)
+
+		// Bandeja de comprobantes recibidos por mail
+		inboundh := handlers.NewInboundReceiptHandler(pool, store)
+		inbound := admin.Group("/inbound-receipts")
+		inbound.GET("", inboundh.List)
+		inbound.GET("/:id/candidates", inboundh.Candidates)
+		inbound.GET("/:id/attachment", inboundh.GetAttachment)
+		inbound.POST("/:id/link", inboundh.Link)
+		inbound.POST("/:id/discard", inboundh.Discard)
 
 		// Trigger manual de jobs de cron (operación / testing)
 		cronh := handlers.NewCronHandler(runner)
@@ -128,6 +146,7 @@ func (s *Server) registerRoutes(cfg *config.Config, pool *pgxpool.Pool, runner *
 		dashboard.GET("/stats", dashh.Stats)
 		dashboard.GET("/activity", dashh.Activity)
 		dashboard.GET("/events", dashh.Events)
+		dashboard.GET("/enrollments-series", dashh.EnrollmentsSeries)
 
 		// Configuración del instituto (admin)
 		seth := handlers.NewSettingsHandler(pool)
@@ -172,6 +191,13 @@ func (s *Server) registerRoutes(cfg *config.Config, pool *pgxpool.Pool, runner *
 		teacher.GET("/attendance", ah.GetSession)
 		teacher.POST("/attendance", ah.SaveAttendance)
 		teacher.GET("/attendance/:studentId/history", ah.GetHistory)
+
+		// Calendario: el profe crea/edita/borra eventos de SUS cursos
+		tcal := handlers.NewCalendarHandler(pool)
+		teacherCal := teacher.Group("/calendar/events")
+		teacherCal.POST("", tcal.CreateAsTeacher)
+		teacherCal.PUT("/:id", tcal.UpdateAsTeacher)
+		teacherCal.DELETE("/:id", tcal.DeleteAsTeacher)
 	}
 
 	// Student — rutas propias del estudiante
@@ -179,6 +205,10 @@ func (s *Server) registerRoutes(cfg *config.Config, pool *pgxpool.Pool, runner *
 	{
 		ch := handlers.NewCourseHandler(pool)
 		student.GET("/courses", ch.ListMyCourses)
+
+		shs := handlers.NewStudentHandler(pool, storage.NewLocalStorage(cfg.StoragePath, "/uploads"))
+		student.GET("/profile", shs.GetMe)
+		student.PUT("/profile/address", shs.UpdateMyAddress)
 
 		gh := handlers.NewGradeHandler(pool)
 		student.GET("/grades", gh.GetMyGrades)

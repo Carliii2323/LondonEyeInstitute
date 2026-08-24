@@ -23,17 +23,17 @@ const META: Record<ActivityType, { icon: ReactNode; color: 'blue' | 'green' | 'a
 
 export function RecentActivity({ items, isLoading }: RecentActivityProps) {
   return (
-    <div className="bg-white rounded-card shadow-card p-6 h-full flex flex-col">
-      <h2 className="font-heading text-section-title text-surface-900 mb-2">Actividad Reciente</h2>
+    <div className="bg-white rounded-card shadow-card p-6">
+      <h3 className="text-small font-semibold text-surface-500 uppercase tracking-wider mb-2">Actividad Reciente</h3>
 
       {isLoading ? (
-        <div className="flex-1 flex flex-col gap-3 pt-2">
+        <div className="flex flex-col gap-3 pt-1">
           {[0, 1, 2, 3].map((i) => <div key={i} className="h-12 rounded-button bg-surface-100 animate-pulse" />)}
         </div>
       ) : items.length === 0 ? (
-        <p className="flex-1 text-body text-surface-400 italic pt-2">Sin actividad reciente.</p>
+        <p className="text-body text-surface-400 italic pt-1">Sin actividad reciente.</p>
       ) : (
-        <div className="flex-1 divide-y divide-surface-100">
+        <div className="divide-y divide-surface-100">
           {items.map((item, idx) => {
             const meta = META[item.type] ?? { icon: <CreditCard size={18} />, color: 'blue' as const, title: 'Actividad' }
             return (

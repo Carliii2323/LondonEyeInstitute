@@ -32,7 +32,7 @@ func (s *CalendarService) List(ctx context.Context, month, year int, userID, rol
 		}
 		items := make([]dto.CalendarEventItem, len(rows))
 		for i, r := range rows {
-			items[i] = eventToDTO(r.ID, r.Title, r.Type, r.Date, r.StartTime, r.EndTime, r.Message, r.CourseID, r.CreatedAt, r.CourseName)
+			items[i] = eventToDTO(r.ID, r.Title, r.Type, r.Date, r.StartTime, r.EndTime, r.Message, r.CourseID, r.CreatedBy, r.CreatedAt, r.CourseName)
 		}
 		return items, nil
 	}
@@ -53,7 +53,7 @@ func (s *CalendarService) List(ctx context.Context, month, year int, userID, rol
 	}
 	items := make([]dto.CalendarEventItem, len(rows))
 	for i, r := range rows {
-		items[i] = eventToDTO(r.ID, r.Title, r.Type, r.Date, r.StartTime, r.EndTime, r.Message, r.CourseID, r.CreatedAt, r.CourseName)
+		items[i] = eventToDTO(r.ID, r.Title, r.Type, r.Date, r.StartTime, r.EndTime, r.Message, r.CourseID, r.CreatedBy, r.CreatedAt, r.CourseName)
 	}
 	return items, nil
 }
@@ -148,10 +148,72 @@ func (s *CalendarService) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
+// ── Profesor: solo eventos de SUS cursos, y solo los que él creó ──────
+
+func (s *CalendarService) CreateForTeacher(ctx context.Context, req dto.CreateEventRequest, teacherID string) (string, error) {
+	if req.CourseID == "" {
+		return "", apperror.New(apperror.ErrBadRequest, "el evento debe estar asociado a uno de tus cursos", "COURSE_REQUIRED")
+	}
+	courseID, err := parseOptionalUUID(req.CourseID)
+	if err != nil {
+		return "", apperror.New(apperror.ErrBadRequest, "course_id inválido", "INVALID_COURSE_ID")
+	}
+	q := dbsqlc.New(s.pool)
+	if err := verifyCourseOwnership(ctx, q, courseID, teacherID); err != nil {
+		return "", err
+	}
+	return s.Create(ctx, req, teacherID)
+}
+
+func (s *CalendarService) UpdateForTeacher(ctx context.Context, id string, req dto.UpdateEventRequest, teacherID string) error {
+	if err := s.assertTeacherOwnsEvent(ctx, id, teacherID); err != nil {
+		return err
+	}
+	if req.CourseID == "" {
+		return apperror.New(apperror.ErrBadRequest, "el evento debe estar asociado a uno de tus cursos", "COURSE_REQUIRED")
+	}
+	courseID, err := parseOptionalUUID(req.CourseID)
+	if err != nil {
+		return apperror.New(apperror.ErrBadRequest, "course_id inválido", "INVALID_COURSE_ID")
+	}
+	q := dbsqlc.New(s.pool)
+	if err := verifyCourseOwnership(ctx, q, courseID, teacherID); err != nil {
+		return err
+	}
+	return s.Update(ctx, id, req)
+}
+
+func (s *CalendarService) DeleteForTeacher(ctx context.Context, id, teacherID string) error {
+	if err := s.assertTeacherOwnsEvent(ctx, id, teacherID); err != nil {
+		return err
+	}
+	return s.Delete(ctx, id)
+}
+
+// assertTeacherOwnsEvent verifica que el evento exista y lo haya creado el profe.
+func (s *CalendarService) assertTeacherOwnsEvent(ctx context.Context, id, teacherID string) error {
+	var eid, tid pgtype.UUID
+	if err := eid.Scan(id); err != nil {
+		return apperror.ErrBadRequest
+	}
+	if err := tid.Scan(teacherID); err != nil {
+		return apperror.ErrForbidden
+	}
+	q := dbsqlc.New(s.pool)
+	ev, err := q.GetEventByID(ctx, eid)
+	if err != nil {
+		return apperror.New(apperror.ErrNotFound, "evento no encontrado", "EVENT_NOT_FOUND")
+	}
+	if ev.CreatedBy != tid {
+		return apperror.New(apperror.ErrForbidden, "solo podés modificar los eventos que vos creaste", "NOT_YOUR_EVENT")
+	}
+	return nil
+}
+
 // ── helpers privados ──────────────────────────────────────────────
 
 func eventToDTO(id pgtype.UUID, title string, etype dbsqlc.EventType, date pgtype.Date,
-	start, end pgtype.Time, msg pgtype.Text, courseID pgtype.UUID,
+	start, end pgtype.Time, msg pgtype.Text, courseID, createdBy pgtype.UUID,
 	createdAt pgtype.Timestamptz, courseName pgtype.Text) dto.CalendarEventItem {
 
 	item := dto.CalendarEventItem{
@@ -162,6 +224,7 @@ func eventToDTO(id pgtype.UUID, title string, etype dbsqlc.EventType, date pgtyp
 		StartTime: timeToString(start),
 		EndTime:   timeToString(end),
 		Message:   msg.String,
+		CreatedBy: uuidToString(createdBy),
 		CreatedAt: createdAt.Time.Format("2006-01-02T15:04:05Z"),
 	}
 	if courseID.Valid {

@@ -19,6 +19,7 @@ export interface StudentFormValues {
   email: string
   phone: string
   address: string
+  birth_date: string
   tutor_name: string
   tutor_phone: string
 }
@@ -81,7 +82,10 @@ export function EditStudentModal({ isOpen, onClose, onSubmit, initialValues }: E
             <FormField label="DNI" name="dni" value={values.dni} onChange={(e) => update('dni', e.target.value)} required />
             <FormField label="Telefono" name="phone" value={values.phone} onChange={(e) => update('phone', e.target.value)} />
           </div>
-          <FormField label="Mail de Contacto" name="email" type="email" value={values.email} readOnly disabled />
+          <div className="grid grid-cols-2 gap-4">
+            <FormField label="Mail de Contacto" name="email" type="email" value={values.email} readOnly disabled />
+            <FormField label="Fecha de Nacimiento" name="birth_date" type="date" value={values.birth_date} onChange={(e) => update('birth_date', e.target.value)} />
+          </div>
           <FormField label="Direccion" name="address" value={values.address} onChange={(e) => update('address', e.target.value)} />
 
           <div className="flex items-center justify-between p-3 bg-surface-50 rounded-button border border-surface-100">
@@ -108,5 +112,5 @@ export function EditStudentModal({ isOpen, onClose, onSubmit, initialValues }: E
 }
 
 function emptyValues(): StudentFormValues {
-  return { first_name: '', last_name: '', dni: '', email: '', phone: '', address: '', tutor_name: '', tutor_phone: '' }
+  return { first_name: '', last_name: '', dni: '', email: '', phone: '', address: '', birth_date: '', tutor_name: '', tutor_phone: '' }
 }

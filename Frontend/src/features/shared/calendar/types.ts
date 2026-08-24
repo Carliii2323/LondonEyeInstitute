@@ -17,5 +17,6 @@ export interface CalendarEvent {
   message?: string
   course_id?: string
   course_name?: string
+  created_by?: string
   created_at?: string
 }

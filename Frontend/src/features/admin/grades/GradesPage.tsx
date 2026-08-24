@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState, Fragment } from 'react'
 import { PageContainer } from '@/components/layout/PageContainer'
 import { Button } from '@/components/ui/Button'
+import { ExportButton } from '@/components/ui/ExportButton'
+import type { TableExport } from '@/lib/exportTable'
 import { YearPicker } from '@/components/ui/YearPicker'
 import { GradeInput } from '@/features/shared/grades/GradeInput'
 import { termGrade, totalGrade, type TermScores } from '@/features/shared/grades/gradeCalc'
@@ -121,6 +123,34 @@ export function GradesPage({ scope = 'admin' }: GradesPageProps) {
     setSuccess(false)
   }
 
+  function buildGradesExport(): TableExport {
+    return {
+      title: 'Planilla de notas',
+      subtitle: `${courseName} · Ciclo ${year}`,
+      head: [
+        'Alumno', 'DNI',
+        'T1 R', 'T1 L', 'T1 S', 'T1 W', 'T1 M.Up', 'T1 Nota',
+        'T2 R', 'T2 L', 'T2 S', 'T2 W', 'T2 M.Up', 'T2 Nota',
+        'Total',
+      ],
+      body: rows.map((r) => [
+        r.name, r.dni,
+        r.term1.reading, r.term1.listening, r.term1.speaking, r.term1.writing, r.term1.makeup, termGrade(r.term1),
+        r.term2.reading, r.term2.listening, r.term2.speaking, r.term2.writing, r.term2.makeup, termGrade(r.term2),
+        totalGrade(r.term1, r.term2),
+      ]),
+      filename: 'notas',
+      columnWidths: [26, 12, 6, 6, 6, 6, 7, 7, 6, 6, 6, 6, 7, 7, 8],
+    }
+  }
+
+  async function handleExport(kind: 'pdf' | 'xlsx') {
+    const table = buildGradesExport()
+    const { exportTableToPdf, exportTableToXlsx } = await import('@/lib/exportTable')
+    if (kind === 'pdf') exportTableToPdf(table, 'landscape')
+    else await exportTableToXlsx(table)
+  }
+
   async function handleSave() {
     if (rows.length === 0) return
     setSaving(true)
@@ -189,9 +219,16 @@ export function GradesPage({ scope = 'admin' }: GradesPageProps) {
         </div>
       ) : (
         <div className="mt-4 bg-white rounded-card shadow-card overflow-hidden">
-          <div className="p-5 pb-4 border-b border-surface-100">
-            <h2 className="font-heading text-section-title text-surface-900">Planilla de Notas — {courseName}</h2>
-            <p className="text-small text-surface-500 mt-0.5">Ciclo {year} · R Reading · L Listening · S Speaking · W Writing</p>
+          <div className="p-5 pb-4 border-b border-surface-100 flex items-start justify-between gap-4">
+            <div>
+              <h2 className="font-heading text-section-title text-surface-900">Planilla de Notas — {courseName}</h2>
+              <p className="text-small text-surface-500 mt-0.5">Ciclo {year} · R Reading · L Listening · S Speaking · W Writing</p>
+            </div>
+            <ExportButton
+              onPdf={() => handleExport('pdf')}
+              onXlsx={() => handleExport('xlsx')}
+              disabled={rows.length === 0}
+            />
           </div>
 
           {rows.length === 0 ? (

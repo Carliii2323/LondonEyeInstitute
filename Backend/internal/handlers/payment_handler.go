@@ -105,9 +105,7 @@ func (h *PaymentHandler) streamReceipt(c *gin.Context, id, requireOwnerID string
 		respondError(c, err)
 		return
 	}
-	contentType := http.DetectContentType(data)
-	c.Header("Content-Disposition", `inline; filename="`+filename+`"`)
-	c.Data(http.StatusOK, contentType, data)
+	serveFile(c, data, filename)
 }
 
 func (h *PaymentHandler) CreateAdditionalCharge(c *gin.Context) {

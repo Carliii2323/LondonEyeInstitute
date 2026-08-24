@@ -32,6 +32,16 @@ func (h *CourseHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
+// Stats — GET /admin/courses/stats (stat cards)
+func (h *CourseHandler) Stats(c *gin.Context) {
+	stats, err := h.svc.Stats(c.Request.Context())
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, stats)
+}
+
 func (h *CourseHandler) GetByID(c *gin.Context) {
 	course, err := h.svc.GetByID(c.Request.Context(), c.Param("id"))
 	if err != nil {
@@ -94,6 +104,16 @@ func (h *CourseHandler) ListByTeacher(c *gin.Context) {
 // ListMyCourses — GET /student/courses ("Mis Cursos" del alumno autenticado)
 func (h *CourseHandler) ListMyCourses(c *gin.Context) {
 	courses, err := h.svc.ListByStudent(c.Request.Context(), c.GetString("userID"))
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, courses)
+}
+
+// ListByTeacherID — GET /admin/teachers/:id/courses (cursos de un docente, admin)
+func (h *CourseHandler) ListByTeacherID(c *gin.Context) {
+	courses, err := h.svc.ListByTeacher(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		respondError(c, err)
 		return

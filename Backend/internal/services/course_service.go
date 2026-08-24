@@ -227,6 +227,22 @@ func (s *CourseService) ListByTeacher(ctx context.Context, teacherID string) ([]
 	return items, nil
 }
 
+// Stats — agregados para las stat cards de Cursos.
+func (s *CourseService) Stats(ctx context.Context) (*dto.CourseStats, error) {
+	q := dbsqlc.New(s.pool)
+
+	r, err := q.GetCourseStats(ctx)
+	if err != nil {
+		return nil, apperror.ErrInternal
+	}
+	return &dto.CourseStats{
+		Active:   r.Active,
+		Full:     r.Full,
+		Inactive: r.Inactive,
+		Enrolled: r.Enrolled,
+	}, nil
+}
+
 // ListByStudent — cursos activos del alumno ("Mis Cursos" del Home).
 func (s *CourseService) ListByStudent(ctx context.Context, studentID string) ([]dto.StudentCourse, error) {
 	q := dbsqlc.New(s.pool)

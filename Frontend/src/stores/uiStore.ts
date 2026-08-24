@@ -8,9 +8,15 @@ import { create } from 'zustand'
  * ============================================================ */
 
 interface UiState {
+  /* Desktop: riel colapsado/expandido (w-64 <-> w-16). Compartido por todos los layouts. */
   isSidebarOpen: boolean
   toggleSidebar: () => void
   setSidebarOpen: (open: boolean) => void
+
+  /* Mobile (< lg): drawer lateral off-canvas. Solo lo consume el layout de alumno por ahora. */
+  isDrawerOpen: boolean
+  openDrawer: () => void
+  closeDrawer: () => void
 }
 
 export const useUiStore = create<UiState>()((set) => ({
@@ -21,4 +27,10 @@ export const useUiStore = create<UiState>()((set) => ({
 
   setSidebarOpen: (isSidebarOpen) =>
     set({ isSidebarOpen }),
+
+  isDrawerOpen: false,
+
+  openDrawer: () => set({ isDrawerOpen: true }),
+
+  closeDrawer: () => set({ isDrawerOpen: false }),
 }))

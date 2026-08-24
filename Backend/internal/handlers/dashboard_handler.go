@@ -51,6 +51,16 @@ func (h *DashboardHandler) Activity(c *gin.Context) {
 	c.JSON(http.StatusOK, items)
 }
 
+func (h *DashboardHandler) EnrollmentsSeries(c *gin.Context) {
+	months := queryInt(c, "months", 6)
+	series, err := h.svc.EnrollmentsSeries(c.Request.Context(), months)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, series)
+}
+
 func (h *DashboardHandler) Events(c *gin.Context) {
 	limit := queryInt(c, "limit", 5)
 	items, err := h.svc.UpcomingEvents(c.Request.Context(), limit)

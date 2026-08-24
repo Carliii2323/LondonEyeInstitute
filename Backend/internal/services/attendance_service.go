@@ -152,7 +152,13 @@ func (s *AttendanceService) GetHistory(ctx context.Context, studentID, courseID,
 		return nil, apperror.ErrBadRequest
 	}
 
-	if role == "teacher" && courseID != "" {
+	// Para un docente, course_id es OBLIGATORIO y debe ser un curso suyo. Sin
+	// esta exigencia, omitir course_id salteaba la verificación de propiedad y
+	// devolvía el historial completo del alumno (IDOR).
+	if role == "teacher" {
+		if courseID == "" {
+			return nil, apperror.New(apperror.ErrBadRequest, "course_id es obligatorio", "COURSE_ID_REQUIRED")
+		}
 		var cid pgtype.UUID
 		if err := cid.Scan(courseID); err != nil {
 			return nil, apperror.ErrBadRequest

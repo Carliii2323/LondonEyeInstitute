@@ -13,6 +13,7 @@ import {
   type CourseListItem,
   type CourseDetail,
   type CourseStatus,
+  type CourseStats,
 } from '@/services/courseService'
 import { teacherService } from '@/services/teacherService'
 import { studentService } from '@/services/studentService'
@@ -50,6 +51,7 @@ export function CoursesPage() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [detail, setDetail] = useState<CourseDetail | null>(null)
   const [detailEnrollments, setDetailEnrollments] = useState<EnrollmentListItem[]>([])
+  const [stats, setStats] = useState<CourseStats | null>(null)
 
   const fetchCourses = useCallback(async () => {
     setLoading(true)
@@ -58,6 +60,7 @@ export function CoursesPage() {
       const res = await courseService.list({ search, status: statusFilter, page, page_size: PAGE_SIZE })
       setCourses(res.data)
       setTotal(res.total)
+      courseService.stats().then(setStats).catch(() => {})
     } catch (err) {
       setError(formatBackendError(err))
       setCourses([])
@@ -186,6 +189,15 @@ export function CoursesPage() {
         </Button>
       }
     >
+      {stats && (
+        <div className="mb-4 grid grid-cols-2 gap-4 md:grid-cols-4">
+          <StatCard label="Activos" value={stats.active} color="emerald" />
+          <StatCard label="Cupo completo" value={stats.full} color="amber" />
+          <StatCard label="Inscriptos" value={stats.enrolled} color="royal" />
+          <StatCard label="Inactivos" value={stats.inactive} color="surface" />
+        </div>
+      )}
+
       <div className="bg-white rounded-card shadow-card p-4 flex items-center justify-between gap-3">
         <SearchInput
           placeholder="Buscar curso..."
@@ -335,4 +347,19 @@ function StatusBadge({ status }: { status: CourseStatus }) {
 function formatPrice(value: string): string {
   const n = Number(value)
   return Number.isNaN(n) ? `$${value}` : `$${n.toLocaleString('es-AR')}`
+}
+
+function StatCard({ label, value, color }: { label: string; value: number; color: 'emerald' | 'amber' | 'royal' | 'surface' }) {
+  const valueColor = {
+    emerald: 'text-emerald-600',
+    amber: 'text-amber-600',
+    royal: 'text-royal-600',
+    surface: 'text-surface-500',
+  }[color]
+  return (
+    <div className="bg-white rounded-card shadow-card p-4">
+      <p className="text-small font-semibold uppercase tracking-wider text-surface-400">{label}</p>
+      <p className={`mt-1 font-heading text-[1.75rem] font-bold ${valueColor}`}>{value}</p>
+    </div>
+  )
 }

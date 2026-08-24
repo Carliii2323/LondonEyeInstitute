@@ -1,10 +1,11 @@
-import type { ReactNode } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { formatDateOnly } from '@/lib/paymentFormat'
 import type { TeacherDetail } from '@/services/teacherService'
+import { courseService, type CourseListItem } from '@/services/courseService'
 
 /* ============================================================
  * TeacherInfoModal — Detalle del docente
@@ -31,6 +32,22 @@ const STATUS_BADGE: Record<string, { label: string; variant: 'success' | 'warnin
 }
 
 export function TeacherInfoModal({ isOpen, onClose, onEdit, onDrop, onReactivate, detail, isLoading }: TeacherInfoModalProps) {
+  const [courses, setCourses] = useState<CourseListItem[]>([])
+
+  useEffect(() => {
+    if (!isOpen || !detail) {
+      setCourses([])
+      return
+    }
+    let active = true
+    courseService.listByTeacher(detail.id)
+      .then((rows) => active && setCourses(rows))
+      .catch(() => active && setCourses([]))
+    return () => { active = false }
+  }, [isOpen, detail])
+
+  const totalStudents = courses.reduce((sum, c) => sum + c.enrolled_count, 0)
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="lg">
       <ModalHeader title="Informacion del Docente" onClose={onClose} />
@@ -61,6 +78,24 @@ export function TeacherInfoModal({ isOpen, onClose, onEdit, onDrop, onReactivate
               <DataField label="Mail de Contacto" value={detail.email} />
               <DataField label="Fecha de Alta" value={formatDateOnly(detail.join_date)} />
             </div>
+
+            <SectionTitle className="mt-6">Cursos Asignados</SectionTitle>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <div className="rounded-badge bg-surface-100 px-3 py-1.5 text-small font-semibold text-surface-600">Cursos: {courses.length}</div>
+              <div className="rounded-badge bg-surface-100 px-3 py-1.5 text-small font-semibold text-surface-600">Alumnos: {totalStudents}</div>
+            </div>
+            {courses.length === 0 ? (
+              <p className="mt-3 text-body text-surface-400 italic">Sin cursos asignados.</p>
+            ) : (
+              <ul className="mt-3 flex flex-col gap-2">
+                {courses.map((c) => (
+                  <li key={c.id} className="flex items-center justify-between gap-2 rounded-button border border-surface-100 bg-surface-50 px-3 py-2">
+                    <span className="text-body text-surface-800 truncate">{c.name}</span>
+                    <span className="text-small text-surface-500 whitespace-nowrap">{c.enrolled_count}/{c.capacity} · {c.schedule}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
 
             {detail.notes && (
               <>

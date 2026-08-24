@@ -153,7 +153,13 @@ async function requestBlob(endpoint: string, _retry = false): Promise<Blob> {
     throw new HttpError(response.status, errorBody)
   }
 
-  return response.blob()
+  const raw = await response.blob()
+  // Seguridad: un blob text/html abierto con URL.createObjectURL hereda el
+  // origen del frontend y podría ejecutar JS con acceso al localStorage (tokens).
+  // Solo dejamos pasar tipos seguros; el resto se re-envuelve como binario para
+  // que el navegador lo descargue en vez de renderizarlo.
+  const safeTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+  return safeTypes.includes(raw.type) ? raw : new Blob([raw], { type: 'application/octet-stream' })
 }
 
 export const httpClient = {

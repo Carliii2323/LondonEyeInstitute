@@ -16,7 +16,10 @@ export interface StudentListItem {
   email: string
   dni: string
   phone: string
+  tutor_name: string
+  courses: string
   status: UserStatus
+  email_verified: boolean
   created_at: string
 }
 
@@ -30,12 +33,18 @@ export interface StudentDetail {
   phone: string
   avatar_url: string
   status: UserStatus
+  email_verified: boolean
   address: string
   tutor_name: string
   tutor_phone: string
+  birth_date: string
+  has_dni_front: boolean
+  has_dni_back: boolean
   created_at: string
   updated_at: string
 }
+
+export type DniSide = 'front' | 'back'
 
 /** Cuerpo de POST /admin/students */
 export interface CreateStudentInput {
@@ -48,6 +57,7 @@ export interface CreateStudentInput {
   address: string
   tutor_name: string
   tutor_phone: string
+  birth_date?: string
 }
 
 /** Cuerpo de PUT /admin/students/:id */
@@ -59,6 +69,7 @@ export interface UpdateStudentInput {
   address: string
   tutor_name: string
   tutor_phone: string
+  birth_date?: string
 }
 
 /** Pago de un alumno — GET /admin/students/:id/payments */
@@ -122,5 +133,30 @@ export const studentService = {
 
   getPayments(id: string) {
     return httpClient.get<StudentPaymentItem[]>(`/admin/students/${id}/payments`)
+  },
+
+  /** Sube el archivo del DNI (frente/dorso). PDF o imagen, máx 5 MB. */
+  uploadDni(id: string, side: DniSide, file: File) {
+    const fd = new FormData()
+    fd.append('file', file)
+    return httpClient.post<StatusResponse>(`/admin/students/${id}/dni/${side}`, fd)
+  },
+
+  /** Abre el archivo del DNI en una pestaña nueva (stream autenticado). */
+  async openDni(id: string, side: DniSide) {
+    const blob = await httpClient.getBlob(`/admin/students/${id}/dni/${side}`)
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank', 'noopener')
+    setTimeout(() => URL.revokeObjectURL(url), 60_000)
+  },
+
+  /** Datos propios del alumno autenticado — GET /student/profile (para el contrato). */
+  getMyProfile() {
+    return httpClient.get<StudentDetail>('/student/profile')
+  },
+
+  /** El alumno edita su propia dirección — PUT /student/profile/address (F9). */
+  updateMyAddress(address: string) {
+    return httpClient.put<StudentDetail>('/student/profile/address', { address })
   },
 }

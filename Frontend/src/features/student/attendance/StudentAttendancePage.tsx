@@ -99,14 +99,22 @@ export function StudentAttendancePage() {
             <Spinner />
           ) : (
             <>
-              <div className="flex flex-wrap gap-2 mb-4">
+              {/* Mobile: bento de stats (estructura del Figma, tokens del proyecto) */}
+              <div className="grid grid-cols-3 gap-2 mb-4 lg:hidden">
+                <StatCard value={presentes} label="Presentes" tone="emerald" />
+                <StatCard value={ausentes} label="Ausentes" tone="accent" />
+                <StatCard value={justificados} label="Justif." tone="amber" />
+              </div>
+
+              {/* Desktop: pills (sin cambios) */}
+              <div className="hidden lg:flex flex-wrap gap-2 mb-4">
                 <Pill color="emerald" label={`Presentes: ${presentes}`} />
                 <Pill color="accent" label={`Ausentes: ${ausentes}`} />
                 <Pill color="amber" label={`Justificados: ${justificados}`} />
                 <Pill color="surface" label={`Total: ${total}`} />
               </div>
 
-              <div className="max-h-[22rem] overflow-y-auto">
+              <div className="hidden lg:block max-h-[22rem] overflow-y-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-surface-100">
@@ -130,6 +138,24 @@ export function StudentAttendancePage() {
                     )}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Mobile: registros como cards apiladas */}
+              <div className="lg:hidden flex flex-col gap-2 max-h-[22rem] overflow-y-auto">
+                {filteredAtt.length === 0 ? (
+                  <p className="py-8 text-center text-body text-surface-400">Sin registros.</p>
+                ) : (
+                  filteredAtt.map((a, i) => (
+                    <div key={`m-${a.date}-${a.course_id}-${i}`} className="rounded-card border border-surface-100 bg-surface-50 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-body font-medium text-surface-800">{formatDateOnly(a.date)}</span>
+                        <Badge variant={STATUS_BADGE[a.status].variant}>{STATUS_BADGE[a.status].label}</Badge>
+                      </div>
+                      <p className="text-small text-surface-500 mt-1">{a.course_name}</p>
+                      {a.observation && <p className="text-small text-surface-400 italic mt-0.5">{a.observation}</p>}
+                    </div>
+                  ))
+                )}
               </div>
 
               {total > 0 && (
@@ -165,8 +191,8 @@ export function StudentAttendancePage() {
                   <thead>
                     <tr className="bg-surface-50/50 border-b border-surface-100">
                       <th className="px-3 py-2 text-left text-small font-semibold text-surface-500 uppercase">Skill</th>
-                      <th className="px-3 py-2 text-center text-small font-semibold text-surface-500 uppercase">Julio</th>
-                      <th className="px-3 py-2 text-center text-small font-semibold text-surface-500 uppercase">Diciembre</th>
+                      <th className="px-3 py-2 text-center text-small font-semibold text-surface-500 uppercase">Term 1°</th>
+                      <th className="px-3 py-2 text-center text-small font-semibold text-surface-500 uppercase">Term 2°</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -234,6 +260,17 @@ function Spinner() {
   return (
     <div className="py-12 flex items-center justify-center">
       <div className="w-7 h-7 border-[3px] border-royal-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
+}
+
+/* Stat card grande para el bento de asistencia en mobile. */
+function StatCard({ value, label, tone }: { value: number; label: string; tone: 'emerald' | 'accent' | 'amber' }) {
+  const colors = { emerald: 'text-emerald-600', accent: 'text-accent-600', amber: 'text-amber-600' }
+  return (
+    <div className="flex flex-col items-center rounded-card border border-surface-100 bg-surface-50 p-3 text-center">
+      <span className={`font-heading text-[1.75rem] font-bold leading-none ${colors[tone]}`}>{value}</span>
+      <span className="mt-1.5 text-small font-semibold uppercase tracking-wider text-surface-500">{label}</span>
     </div>
   )
 }

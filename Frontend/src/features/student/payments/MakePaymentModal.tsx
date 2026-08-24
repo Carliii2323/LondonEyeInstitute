@@ -90,7 +90,7 @@ export function MakePaymentModal({ isOpen, onClose, onSuccess, payment }: MakePa
         <form id="make-payment-form" onSubmit={handleSubmit} className="flex flex-col gap-5">
           {/* Detalle de la cuota */}
           <SectionLabel>Detalle de la Cuota</SectionLabel>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <DataField label="Periodo" value={periodLabel(payment.month, payment.year)} />
             <DataField label="Curso" value={payment.course_name} />
             <div>

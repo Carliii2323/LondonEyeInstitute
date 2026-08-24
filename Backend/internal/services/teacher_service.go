@@ -46,14 +46,15 @@ func (s *TeacherService) List(ctx context.Context, search, status string, page, 
 	items := make([]dto.TeacherListItem, len(rows))
 	for i, r := range rows {
 		items[i] = dto.TeacherListItem{
-			ID:        uuidToString(r.ID),
-			FirstName: r.FirstName,
-			LastName:  r.LastName,
-			Email:     r.Email,
-			DNI:       r.Dni,
-			Phone:     r.Phone.String,
-			Status:    string(r.Status),
-			CreatedAt: r.CreatedAt.Time.Format("2006-01-02T15:04:05Z"),
+			ID:           uuidToString(r.ID),
+			FirstName:    r.FirstName,
+			LastName:     r.LastName,
+			Email:        r.Email,
+			DNI:          r.Dni,
+			Phone:        r.Phone.String,
+			CoursesCount: r.CoursesCount,
+			Status:       string(r.Status),
+			CreatedAt:    r.CreatedAt.Time.Format("2006-01-02T15:04:05Z"),
 		}
 	}
 

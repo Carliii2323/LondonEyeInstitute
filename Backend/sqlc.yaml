@@ -14,6 +14,11 @@ sql:
       - "migrations/009_payment_method.up.sql"
       - "migrations/010_course_derechos.up.sql"
       - "migrations/011_course_classroom.up.sql"
+      - "migrations/012_student_birthdate.up.sql"
+      - "migrations/013_email_verification.up.sql"
+      - "migrations/014_inbound_receipts.up.sql"
+      - "migrations/015_inbound_detected_fields.up.sql"
+      - "migrations/016_student_dni_files.up.sql"
     gen:
       go:
         package: "sqlc"

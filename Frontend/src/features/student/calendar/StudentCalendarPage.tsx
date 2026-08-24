@@ -59,7 +59,12 @@ export function StudentCalendarPage() {
               <div className="w-7 h-7 border-[3px] border-royal-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : (
-            <CalendarGrid viewDate={viewDate} events={events} onDayClick={() => {}} />
+            /* Mobile: el grid mantiene un ancho legible y se arrastra de costado. En lg+ llena el ancho como siempre. */
+            <div className="overflow-x-auto">
+              <div className="min-w-[640px] lg:min-w-0">
+                <CalendarGrid viewDate={viewDate} events={events} onDayClick={() => {}} />
+              </div>
+            </div>
           )}
         </div>
 

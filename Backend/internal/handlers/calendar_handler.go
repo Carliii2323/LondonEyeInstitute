@@ -66,3 +66,40 @@ func (h *CalendarHandler) Delete(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, dto.StatusResponse{Message: "evento eliminado"})
 }
+
+// ── Profesor: crea/edita/borra eventos de sus cursos ──────────────────
+
+func (h *CalendarHandler) CreateAsTeacher(c *gin.Context) {
+	var req dto.CreateEventRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondValidationError(c, err)
+		return
+	}
+	id, err := h.svc.CreateForTeacher(c.Request.Context(), req, c.GetString("userID"))
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"id": id})
+}
+
+func (h *CalendarHandler) UpdateAsTeacher(c *gin.Context) {
+	var req dto.UpdateEventRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondValidationError(c, err)
+		return
+	}
+	if err := h.svc.UpdateForTeacher(c.Request.Context(), c.Param("id"), req, c.GetString("userID")); err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, dto.StatusResponse{Message: "evento actualizado"})
+}
+
+func (h *CalendarHandler) DeleteAsTeacher(c *gin.Context) {
+	if err := h.svc.DeleteForTeacher(c.Request.Context(), c.Param("id"), c.GetString("userID")); err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, dto.StatusResponse{Message: "evento eliminado"})
+}

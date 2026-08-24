@@ -30,7 +30,8 @@ export interface LoginRequest {
   password: string
 }
 
-/** Cuerpo de POST /auth/register (auto-registro de estudiante) */
+/** Cuerpo de POST /auth/register (auto-registro de estudiante).
+ *  Se envia como multipart/form-data junto con el archivo `dni_front`. */
 export interface RegisterRequest {
   email: string
   password: string
@@ -38,6 +39,10 @@ export interface RegisterRequest {
   last_name: string
   dni: string
   phone: string
+  birth_date: string // YYYY-MM-DD
+  address: string
+  tutor_name: string
+  tutor_phone: string
 }
 
 /** Respuesta de login / refresh (AuthResponse DTO) */

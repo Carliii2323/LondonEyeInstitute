@@ -73,6 +73,14 @@ export interface CourseInput {
   teacher_id: string
 }
 
+/** Agregados de cursos — GET /admin/courses/stats. */
+export interface CourseStats {
+  active: number
+  full: number
+  inactive: number
+  enrolled: number
+}
+
 /** Curso del alumno — GET /student/courses ("Mis Cursos"). */
 export interface StudentCourse {
   id: string
@@ -108,6 +116,10 @@ export const courseService = {
     return httpClient.get<CourseDetail>(`/admin/courses/${id}`)
   },
 
+  stats() {
+    return httpClient.get<CourseStats>('/admin/courses/stats')
+  },
+
   create(data: CourseInput) {
     return httpClient.post<CourseDetail>('/admin/courses', data)
   },
@@ -132,6 +144,11 @@ export const courseService = {
   /** Cursos del alumno autenticado — GET /student/courses */
   studentCourses() {
     return httpClient.get<StudentCourse[]>('/student/courses')
+  },
+
+  /** Cursos asignados a un docente (admin) — GET /admin/teachers/:id/courses */
+  listByTeacher(teacherId: string) {
+    return httpClient.get<CourseListItem[]>(`/admin/teachers/${teacherId}/courses`)
   },
 
   /** Roster de un curso del docente — GET /teacher/courses/:id/students */
