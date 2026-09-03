@@ -174,11 +174,29 @@ export function AttendancePage({ scope = 'admin' }: AttendancePageProps) {
     }
   }
 
+  /* Planilla anual como tabla: alumnos x fechas, con P/A/J en cada celda. */
+  function buildAnnualExport(): TableExport {
+    return {
+      title: 'Planilla anual',
+      subtitle: `${courseName} · Ano ${year}`,
+      head: ['Alumno', ...sheetClasses.map((c) => c.date)],
+      body: sheetStudents.map((s) => [s.name, ...sheetClasses.map((c) => c.attendances[s.id] ?? '')]),
+      filename: 'asistencia-anual',
+      columnWidths: [30, ...sheetClasses.map(() => 6)],
+    }
+  }
+
   async function handleAbsencesExport(kind: 'pdf' | 'xlsx') {
-    const table = buildAbsencesExport()
-    const { exportTableToPdf, exportTableToXlsx } = await import('@/lib/exportTable')
-    if (kind === 'pdf') exportTableToPdf(table, 'portrait')
-    else await exportTableToXlsx(table)
+    const resumen = buildAbsencesExport()
+    const { exportTableToPdf, exportTablesToXlsx } = await import('@/lib/exportTable')
+    // El PDF lleva solo el resumen: la matriz anual es demasiado ancha para A4.
+    if (kind === 'pdf') {
+      exportTableToPdf(resumen, 'portrait')
+      return
+    }
+    // Excel: hoja 1 = inasistencias por termino, hoja 2 = planilla anual.
+    const hojas = sheetClasses.length > 0 ? [resumen, buildAnnualExport()] : [resumen]
+    await exportTablesToXlsx(hojas, 'asistencia')
   }
 
   return (
@@ -277,10 +295,6 @@ export function AttendancePage({ scope = 'admin' }: AttendancePageProps) {
               )}
             </div>
 
-            {showAnnual && sheetClasses.length > 0 && (
-              <AnnualAttendanceSheet course={courseName} year={year} students={sheetStudents} classes={sheetClasses} />
-            )}
-
             {showAnnual && termAbsences.length > 0 && (
               <div className="bg-white rounded-card shadow-card overflow-hidden">
                 <div className="p-5 pb-4 border-b border-surface-100 flex items-start justify-between gap-4">
@@ -316,6 +330,11 @@ export function AttendancePage({ scope = 'admin' }: AttendancePageProps) {
                   </table>
                 </div>
               </div>
+            )}
+            {/* La planilla anual va al final: es la tabla mas ancha y se consulta
+                despues del resumen. Tambien se baja como 2da hoja del Excel. */}
+            {showAnnual && sheetClasses.length > 0 && (
+              <AnnualAttendanceSheet course={courseName} year={year} students={sheetStudents} classes={sheetClasses} />
             )}
           </>
         )}

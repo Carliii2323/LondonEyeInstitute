@@ -81,4 +81,9 @@ export const certificateService = {
   getById(id: string) {
     return httpClient.get<CertificateDetail>(`/student/certificates/${id}`)
   },
+
+  /** DELETE /admin/certificates/:id — borrado FISICO (emitidos por error). */
+  remove(id: string) {
+    return httpClient.delete<{ message: string }>(`/admin/certificates/${id}`)
+  },
 }

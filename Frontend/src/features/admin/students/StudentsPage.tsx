@@ -38,6 +38,8 @@ export function StudentsPage() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [courseFilter, setCourseFilter] = useState('')
+  const [yearFilter, setYearFilter] = useState(0) // 0 = todos los anios
   const [isLoading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -55,7 +57,10 @@ export function StudentsPage() {
     setLoading(true)
     setError(null)
     try {
-      const res = await studentService.list({ search, status: statusFilter, page, page_size: PAGE_SIZE })
+      const res = await studentService.list({
+        search, status: statusFilter, course_id: courseFilter, year: yearFilter,
+        page, page_size: PAGE_SIZE,
+      })
       setStudents(res.data)
       setTotal(res.total)
     } catch (err) {
@@ -64,7 +69,7 @@ export function StudentsPage() {
     } finally {
       setLoading(false)
     }
-  }, [search, statusFilter, page])
+  }, [search, statusFilter, courseFilter, yearFilter, page])
 
   useEffect(() => {
     const timer = setTimeout(fetchStudents, 350)
@@ -175,9 +180,15 @@ export function StudentsPage() {
 
   // Export: trae TODO el listado que matchea el filtro actual (no solo la pagina).
   async function buildStudentsExport(): Promise<TableExport> {
-    const res = await studentService.list({ search, status: statusFilter, page: 1, page_size: 1000 })
+    const res = await studentService.list({
+      search, status: statusFilter, course_id: courseFilter, year: yearFilter,
+      page: 1, page_size: 1000,
+    })
+    const courseName = courses.find((c) => c.id === courseFilter)?.name
     const filterParts = [
       statusFilter ? `Estado: ${STATUS_EXPORT_LABEL[statusFilter] ?? statusFilter}` : 'Todos los estados',
+      courseName ? `Curso: ${courseName}` : null,
+      yearFilter ? `Anio: ${yearFilter}` : null,
       search ? `Busqueda: "${search}"` : null,
     ].filter(Boolean)
     return {
@@ -233,6 +244,11 @@ export function StudentsPage() {
         onSearchChange={(v) => { setSearch(v); setPage(1) }}
         statusValue={statusFilter}
         onStatusChange={(v) => { setStatusFilter(v); setPage(1) }}
+        courseValue={courseFilter}
+        onCourseChange={(v) => { setCourseFilter(v); setPage(1) }}
+        yearValue={yearFilter}
+        onYearChange={(v) => { setYearFilter(v); setPage(1) }}
+        courses={courses}
       />
 
       {error && (

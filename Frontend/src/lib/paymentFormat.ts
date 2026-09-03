@@ -37,13 +37,25 @@ const MONTHS = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ]
 
-/** "Cuota mensual" → "Octubre 2026"; "Cargo adicional" → "2026" */
+/** "Cuota mensual" → "Octubre 2026"; sin mes (cargo anual) → "Año 2026".
+ *  El "Año" adelante evita que un año pelado se lea como un dato faltante. */
 export function periodLabel(month: number | null, year: number): string {
   if (month && month >= 1 && month <= 12) {
     return `${MONTHS[month - 1]} ${year}`
   }
-  return String(year)
+  return `Año ${year}`
 }
+
+/** Solo el mes, para tablas ya acotadas a un año. Sin mes → "Anual". */
+export function monthLabel(month: number | null): string {
+  if (month && month >= 1 && month <= 12) {
+    return MONTHS[month - 1] ?? ''
+  }
+  return 'Anual'
+}
+
+/** Meses para los selectores de filtro (value 1-12). */
+export const MONTH_OPTIONS = MONTHS.map((label, i) => ({ value: i + 1, label }))
 
 export function formatMoney(value: string): string {
   const n = Number(value)

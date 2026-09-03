@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { PageContainer } from '@/components/layout/PageContainer'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
+import { SortableTh } from '@/components/ui/SortableTh'
+import { toggleSort, sortRows, type SortState } from '@/lib/sortTable'
 import { RejectReceiptModal } from './RejectReceiptModal'
 import { InboundReceiptsCard } from './InboundReceiptsCard'
 import { paymentService, type PaymentListItem } from '@/services/paymentService'
@@ -30,6 +32,23 @@ export function PaymentReviewPage() {
   const [error, setError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [rejectTarget, setRejectTarget] = useState<RejectTarget | null>(null)
+  // Esta lista llega completa (sin paginado), asi que el orden se hace aca.
+  const [sort, setSort] = useState<SortState | null>(null)
+
+  function handleSort(key: string) {
+    setSort((prev) => toggleSort(prev, key))
+  }
+
+  const sortedPending = sortRows(pending, sort, (p, key) => {
+    switch (key) {
+      case 'student': return `${p.last_name} ${p.first_name}`
+      case 'course': return p.course_name
+      case 'period': return p.year * 100 + (p.month ?? 0) // ordena por periodo real, no por texto
+      case 'amount': return Number(p.total)
+      case 'sent': return p.receipt_uploaded_at
+      default: return null
+    }
+  })
 
   const fetchPending = useCallback(async () => {
     setLoading(true)
@@ -97,13 +116,17 @@ export function PaymentReviewPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-t border-surface-100 bg-surface-50/50">
-                  {['Alumno', 'Curso', 'Periodo', 'Monto', 'Enviado', 'Comprobante', 'Acciones'].map((h) => (
-                    <th key={h} className="px-5 py-3 text-left text-small font-semibold text-surface-500 uppercase tracking-wider">{h}</th>
-                  ))}
+                  <SortableTh sortKey="student" label="Alumno" sort={sort} onSort={handleSort} />
+                  <SortableTh sortKey="course" label="Curso" sort={sort} onSort={handleSort} />
+                  <SortableTh sortKey="period" label="Periodo" sort={sort} onSort={handleSort} />
+                  <SortableTh sortKey="amount" label="Monto" sort={sort} onSort={handleSort} />
+                  <SortableTh sortKey="sent" label="Enviado" sort={sort} onSort={handleSort} />
+                  <th className="px-5 py-3 text-left text-small font-semibold text-surface-500 uppercase tracking-wider">Comprobante</th>
+                  <th className="px-5 py-3 text-left text-small font-semibold text-surface-500 uppercase tracking-wider">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-100">
-                {pending.map((p) => (
+                {sortedPending.map((p) => (
                   <tr key={p.id} className="hover:bg-surface-50/50 transition-colors">
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">

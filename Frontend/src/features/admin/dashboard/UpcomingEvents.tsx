@@ -16,7 +16,7 @@ const MONTH_ABBR = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP
 
 export function UpcomingEvents({ events, isLoading }: UpcomingEventsProps) {
   return (
-    <div className="bg-white rounded-card shadow-card p-6">
+    <div className="bg-white rounded-card shadow-card p-5">
       <h3 className="text-small font-semibold text-surface-500 uppercase tracking-wider mb-2">Proximas Actividades</h3>
 
       {isLoading ? (

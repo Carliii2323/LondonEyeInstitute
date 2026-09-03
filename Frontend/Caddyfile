@@ -1,0 +1,46 @@
+# ============================================================
+# Caddyfile — configuracion del portero.
+#
+# SITE_ADDRESS decide COMO se sirve el sistema, y es lo unico que
+# cambia entre tu MV de prueba y el servidor de produccion:
+#
+#   :80                          -> HTTP simple (MV / pruebas locales)
+#   londoneyeenglishinstitute.site -> Caddy saca y renueva el
+#                                     certificado HTTPS solo, gratis
+#
+# Se define en el archivo .env. No hay que tocar nada mas.
+# ============================================================
+
+{$SITE_ADDRESS} {
+	# Comprime las respuestas: la app carga bastante mas rapido.
+	encode gzip
+
+	# /api/* -> al backend Go.
+	handle /api/* {
+		reverse_proxy api:8080
+	}
+
+	# /uploads/* -> tambien al Go (ahi se sirven los avatares).
+	handle /uploads/* {
+		reverse_proxy api:8080
+	}
+
+	# Todo lo demas -> la SPA de React.
+	handle {
+		root * /srv
+
+		# try_files es LO QUE HACE QUE ANDE EL REFRESH: como React
+		# Router maneja las rutas en el navegador, si alguien entra
+		# directo a /alumnos o aprieta F5, en el disco no existe ese
+		# archivo. Esta linea devuelve index.html y deja que React
+		# resuelva la ruta.
+		try_files {path} /index.html
+		file_server
+	}
+
+	# Logs en formato JSON, para poder leerlos con docker compose logs.
+	log {
+		output stdout
+		format json
+	}
+}

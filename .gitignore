@@ -2,3 +2,9 @@ Documentos/
 .claude/
 .mcp.json
 Entrega-Codigo-Completo.txt
+
+# Variables de entorno de Docker (contiene secretos)
+.env
+
+# Datos persistentes del servidor (uploads)
+data/

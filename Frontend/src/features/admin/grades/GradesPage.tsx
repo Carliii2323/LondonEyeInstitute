@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, Fragment } from 'react'
+import { useCallback, useEffect, useState, Fragment, type KeyboardEvent } from 'react'
 import { PageContainer } from '@/components/layout/PageContainer'
 import { Button } from '@/components/ui/Button'
 import { ExportButton } from '@/components/ui/ExportButton'
@@ -33,6 +33,41 @@ const SKILLS: { key: keyof TermScores; label: string }[] = [
   { key: 'speaking', label: 'S' },
   { key: 'writing', label: 'W' },
 ]
+
+/* Celdas por fila de alumno: 2 terminos x (4 skills + Make Up). Lo usa la
+   navegacion con flechas para saltar de fila (arriba/abajo). */
+const COLS_PER_ROW = 10
+
+/* Navegacion con teclado por la planilla: flechas, Enter y Tab (nativo).
+   Izquierda/derecha solo cambian de celda si el cursor ya esta en el borde del
+   texto; si no, dejan mover el cursor dentro del numero. */
+function handleGridKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+  const key = event.key
+  if (key !== 'ArrowUp' && key !== 'ArrowDown' && key !== 'ArrowLeft' && key !== 'ArrowRight' && key !== 'Enter') return
+
+  const target = event.target as HTMLElement
+  if (!(target instanceof HTMLInputElement) || target.dataset.gradeCell === undefined) return
+
+  const cells = Array.from(event.currentTarget.querySelectorAll<HTMLInputElement>('input[data-grade-cell]'))
+  const index = cells.indexOf(target)
+  if (index === -1) return
+
+  const caret = target.selectionStart ?? 0
+  if (key === 'ArrowLeft' && caret > 0) return
+  if (key === 'ArrowRight' && caret < target.value.length) return
+
+  let next = index
+  if (key === 'ArrowLeft') next = index - 1
+  else if (key === 'ArrowRight') next = index + 1
+  else if (key === 'ArrowUp') next = index - COLS_PER_ROW
+  else next = index + COLS_PER_ROW // ArrowDown y Enter
+
+  const el = cells[next]
+  if (!el) return
+  event.preventDefault()
+  el.focus()
+  el.select()
+}
 
 const NOW_YEAR = new Date().getFullYear()
 const YEARS = [NOW_YEAR, NOW_YEAR - 1, NOW_YEAR - 2]
@@ -234,7 +269,7 @@ export function GradesPage({ scope = 'admin' }: GradesPageProps) {
           {rows.length === 0 ? (
             <div className="py-12 text-center text-body text-surface-400">El curso no tiene alumnos inscriptos.</div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto" onKeyDown={handleGridKeyDown}>
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="bg-surface-50/50 border-b border-surface-100">

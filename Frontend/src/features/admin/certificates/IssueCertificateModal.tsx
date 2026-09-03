@@ -1,9 +1,13 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { FormField } from '@/components/forms/FormField'
 import { Button } from '@/components/ui/Button'
+import { AlertTriangle } from 'lucide-react'
 import { enrollmentService } from '@/services/enrollmentService'
 import { certificateService } from '@/services/certificateService'
+import { gradeService, type Term } from '@/services/gradeService'
+import { totalGrade, type TermScores } from '@/features/shared/grades/gradeCalc'
 import { formatBackendError } from '@/lib/formatBackendError'
 import { HttpError } from '@/services/httpClient'
 
@@ -31,12 +35,15 @@ export function IssueCertificateModal({ isOpen, onClose, onIssued, courses }: Is
   const [year, setYear] = useState(String(new Date().getFullYear()))
   const [hours, setHours] = useState('')
   const [isSubmitting, setSubmitting] = useState(false)
+  const [isChecking, setChecking] = useState(false)
+  const [confirmNoGrades, setConfirmNoGrades] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (isOpen) {
       setCourseId(''); setStudents([]); setStudentId('')
       setYear(String(new Date().getFullYear())); setHours(''); setError(null)
+      setConfirmNoGrades(false)
     }
   }, [isOpen])
 
@@ -49,12 +56,8 @@ export function IssueCertificateModal({ isOpen, onClose, onIssued, courses }: Is
       .catch(() => setStudents([]))
   }, [courseId])
 
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault()
-    if (!courseId || !studentId) {
-      setError('Elegí un curso y un alumno.')
-      return
-    }
+  /* Emite de verdad. Se llama directo, o desde la confirmacion de "sin notas". */
+  async function issue() {
     setSubmitting(true)
     setError(null)
     try {
@@ -73,7 +76,55 @@ export function IssueCertificateModal({ isOpen, onClose, onIssued, courses }: Is
     }
   }
 
+  /**
+   * true si el certificado saldria SIN promedio. Replica la regla del backend:
+   * por termino, el recuperatorio reemplaza al promedio de skills; si no hay
+   * recuperatorio ni ninguna skill cargada, el termino no cuenta. Sin ningun
+   * termino valido -> no hay promedio.
+   */
+  async function wouldHaveNoAverage(): Promise<boolean> {
+    const y = parseInt(year, 10) || new Date().getFullYear()
+    try {
+      const data = await gradeService.getByCourse(courseId, y)
+      const gradeByKey = new Map(data.grades.map((g) => [`${g.student_id}-${g.term}`, g]))
+      const makeupByKey = new Map(data.makeups.map((m) => [`${m.student_id}-${m.term}`, m.score]))
+      const buildTerm = (term: Term): TermScores => {
+        const g = gradeByKey.get(`${studentId}-${term}`)
+        return {
+          reading: g?.reading ?? null,
+          listening: g?.listening ?? null,
+          speaking: g?.speaking ?? null,
+          writing: g?.writing ?? null,
+          makeup: makeupByKey.get(`${studentId}-${term}`) ?? null,
+        }
+      }
+      return totalGrade(buildTerm(1), buildTerm(2)) === null
+    } catch {
+      return false // si no se puede chequear, no frenamos la emision (manda el backend)
+    }
+  }
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault()
+    if (!courseId || !studentId) {
+      setError('Elegí un curso y un alumno.')
+      return
+    }
+    setError(null)
+    setChecking(true)
+    const sinNotas = await wouldHaveNoAverage()
+    setChecking(false)
+
+    // Avisar ANTES de emitir: asi no se crea un certificado que despues hay que borrar.
+    if (sinNotas) {
+      setConfirmNoGrades(true)
+      return
+    }
+    await issue()
+  }
+
   return (
+    <>
     <Modal isOpen={isOpen} onClose={onClose} size="md">
       <ModalHeader title="Emitir Certificado" onClose={onClose} />
 
@@ -110,11 +161,26 @@ export function IssueCertificateModal({ isOpen, onClose, onIssued, courses }: Is
 
       <ModalFooter className="justify-between">
         <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-        <Button type="submit" form="issue-cert-form" variant="danger" isLoading={isSubmitting} disabled={!studentId}>
+        <Button type="submit" form="issue-cert-form" variant="danger" isLoading={isSubmitting || isChecking} disabled={!studentId}>
           Emitir Certificado
         </Button>
       </ModalFooter>
     </Modal>
+
+    {/* Va como hermano (no anidado) para que se apile por encima del modal de emision. */}
+    <ConfirmDialog
+      isOpen={confirmNoGrades}
+      onClose={() => setConfirmNoGrades(false)}
+      onConfirm={() => { setConfirmNoGrades(false); void issue() }}
+      title="El alumno no tiene notas cargadas"
+      description="No hay notas para este alumno en el curso y año elegidos, así que el certificado se va a emitir con el promedio en blanco."
+      warning="Si corresponde, cargá las notas primero y volvé a emitirlo."
+      confirmLabel="Emitir igual"
+      confirmVariant="primary"
+      icon={<AlertTriangle size={22} className="text-accent-500" />}
+      isLoading={isSubmitting}
+    />
+    </>
   )
 }
 

@@ -42,7 +42,7 @@ export function DashboardPage() {
     Promise.all([
       Promise.all(PERIODS.map((p) => dashboardService.stats(p.month, p.year))),
       dashboardService.activity(8),
-      dashboardService.events(5),
+      dashboardService.events(3),
     ])
       .then(([series, a, e]) => {
         if (!active) return

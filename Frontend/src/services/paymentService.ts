@@ -53,6 +53,10 @@ export interface ListPaymentsParams {
   search?: string
   month?: number
   year?: number
+  /** Columna por la que ordenar (whitelist del backend): student | course | status | type | due_date | amount */
+  sort_by?: string
+  /** Direccion del orden. */
+  order_dir?: 'asc' | 'desc'
   page?: number
   page_size?: number
 }
@@ -85,6 +89,8 @@ function buildQuery(params: ListPaymentsParams): string {
   if (params.search) q.set('search', params.search)
   if (params.month) q.set('month', String(params.month))
   if (params.year) q.set('year', String(params.year))
+  if (params.sort_by) q.set('sort_by', params.sort_by)
+  if (params.order_dir) q.set('order_dir', params.order_dir)
   q.set('page', String(params.page ?? 1))
   q.set('page_size', String(params.page_size ?? 20))
   return q.toString()

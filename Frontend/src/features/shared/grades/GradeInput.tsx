@@ -32,6 +32,7 @@ export function GradeInput({ value, onChange, isFailing = false, emphasize = fal
       inputMode="numeric"
       pattern="[0-9]*"
       maxLength={2}
+      data-grade-cell=""
       value={value ?? ''}
       onChange={handleChange}
       disabled={disabled}

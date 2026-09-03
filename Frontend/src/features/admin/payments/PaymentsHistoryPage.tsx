@@ -6,14 +6,15 @@ import { Badge } from '@/components/ui/Badge'
 import { Pagination } from '@/components/ui/Pagination'
 import { ActionMenu } from '@/components/ui/ActionMenu'
 import { SearchInput } from '@/components/ui/SearchInput'
-import { MonthYearPicker } from '@/components/ui/MonthYearPicker'
+import { SortableTh } from '@/components/ui/SortableTh'
+import { toggleSort, type SortState } from '@/lib/sortTable'
 import { StudentPaymentHistoryModal } from './StudentPaymentHistoryModal'
 import { RegisterPaymentModal } from './RegisterPaymentModal'
 import { AnnulPaymentModal } from './AnnulPaymentModal'
 import { CreatePaymentModal } from './CreatePaymentModal'
 import { ReceiptModal } from '@/features/shared/payments/ReceiptModal'
 import { paymentService, type PaymentListItem, type PaymentMethod } from '@/services/paymentService'
-import { statusBadge, periodLabel, typeLabel, formatMoney, formatDateOnly } from '@/lib/paymentFormat'
+import { statusBadge, monthLabel, typeLabel, formatMoney, formatDateOnly, MONTH_OPTIONS } from '@/lib/paymentFormat'
 import { formatBackendError } from '@/lib/formatBackendError'
 
 /* ============================================================
@@ -43,6 +44,9 @@ const TYPE_OPTIONS = [
 
 const NOW = new Date()
 
+/** Anios ofrecidos en el filtro: el actual y los 4 anteriores. */
+const YEAR_OPTIONS = Array.from({ length: 5 }, (_, i) => NOW.getFullYear() - i)
+
 export function PaymentsHistoryPage() {
   const [payments, setPayments] = useState<PaymentListItem[]>([])
   const [total, setTotal] = useState(0)
@@ -51,11 +55,13 @@ export function PaymentsHistoryPage() {
   const [typeFilter, setTypeFilter] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
-  const [usePeriod, setUsePeriod] = useState(false)
-  const [month, setMonth] = useState(NOW.getMonth() + 1) // 1-12
+  // La tabla se acota a un año (como Notas y Asistencia). 0 = todos los años.
   const [year, setYear] = useState(NOW.getFullYear())
+  const [month, setMonth] = useState(0) // 0 = todos los meses
   const [isLoading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Orden por header clickeable. null = orden por defecto del backend (periodo desc).
+  const [sort, setSort] = useState<SortState | null>(null)
 
   const [historyTarget, setHistoryTarget] = useState<{ id: string; name: string } | null>(null)
   const [registerTarget, setRegisterTarget] = useState<PaymentListItem | null>(null)
@@ -71,8 +77,10 @@ export function PaymentsHistoryPage() {
         status: statusFilter,
         type: typeFilter,
         search,
-        month: usePeriod ? month : 0,
-        year: usePeriod ? year : 0,
+        month,
+        year,
+        sort_by: sort?.by,
+        order_dir: sort?.dir,
         page,
         page_size: PAGE_SIZE,
       })
@@ -84,7 +92,14 @@ export function PaymentsHistoryPage() {
     } finally {
       setLoading(false)
     }
-  }, [statusFilter, typeFilter, search, usePeriod, month, year, page])
+  }, [statusFilter, typeFilter, search, month, year, sort, page])
+
+  /* Click en un header: ordena asc y al segundo click invierte. Vuelve a la
+     pagina 1 porque el orden cambia todo el conjunto, no solo lo visible. */
+  function handleSort(key: string) {
+    setSort((prev) => toggleSort(prev, key))
+    setPage(1)
+  }
 
   useEffect(() => { fetchPayments() }, [fetchPayments])
 
@@ -140,23 +155,25 @@ export function PaymentsHistoryPage() {
           {TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
 
-        <label className="flex items-center gap-2 text-body text-surface-600 select-none">
-          <input
-            type="checkbox"
-            checked={usePeriod}
-            onChange={(e) => { setUsePeriod(e.target.checked); setPage(1) }}
-            className="w-4 h-4 rounded border-surface-300 text-royal-500 focus:ring-royal-500/30"
-          />
-          Por periodo
-        </label>
+        <select
+          value={year}
+          onChange={(e) => { setYear(Number(e.target.value)); setPage(1) }}
+          aria-label="Filtrar por anio"
+          className="px-3 py-2.5 rounded-input border border-surface-200 bg-white text-body text-surface-700 focus:outline-none focus:ring-2 focus:ring-royal-500/30 focus:border-royal-500"
+        >
+          {YEAR_OPTIONS.map((y) => <option key={y} value={y}>{y}</option>)}
+          <option value={0}>Todos los años</option>
+        </select>
 
-        {usePeriod && (
-          <MonthYearPicker
-            month={month - 1}
-            year={year}
-            onChange={(m, y) => { setMonth(m + 1); setYear(y); setPage(1) }}
-          />
-        )}
+        <select
+          value={month}
+          onChange={(e) => { setMonth(Number(e.target.value)); setPage(1) }}
+          aria-label="Filtrar por mes"
+          className="px-3 py-2.5 rounded-input border border-surface-200 bg-white text-body text-surface-700 focus:outline-none focus:ring-2 focus:ring-royal-500/30 focus:border-royal-500"
+        >
+          <option value={0}>Todos los meses</option>
+          {MONTH_OPTIONS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+        </select>
       </div>
 
       {error && (
@@ -174,9 +191,14 @@ export function PaymentsHistoryPage() {
             <table className="w-full">
               <thead>
                 <tr className="bg-surface-50/50 border-b border-surface-100">
-                  {['Alumno', 'Curso', 'Periodo', 'Tipo', 'Monto', 'Vence', 'Estado', 'Acciones'].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-small font-semibold text-surface-500 uppercase tracking-wider">{h}</th>
-                  ))}
+                  <SortableTh sortKey="student" label="Alumno" sort={sort} onSort={handleSort} className="px-4" />
+                  <SortableTh sortKey="course" label="Curso" sort={sort} onSort={handleSort} className="px-4" />
+                  <SortableTh sortKey="period" label="Mes" sort={sort} onSort={handleSort} className="px-4" />
+                  <SortableTh sortKey="type" label="Tipo" sort={sort} onSort={handleSort} className="px-4" />
+                  <SortableTh sortKey="amount" label="Monto" sort={sort} onSort={handleSort} className="px-4" />
+                  <SortableTh sortKey="due_date" label="Vence" sort={sort} onSort={handleSort} className="px-4" />
+                  <SortableTh sortKey="status" label="Estado" sort={sort} onSort={handleSort} className="px-4" />
+                  <th className="px-4 py-3 text-left text-small font-semibold text-surface-500 uppercase tracking-wider">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-100">
@@ -206,7 +228,11 @@ export function PaymentsHistoryPage() {
                           </div>
                         </td>
                         <td className="px-4 py-4 text-body text-surface-600">{p.course_name}</td>
-                        <td className="px-4 py-4 text-body text-surface-600 whitespace-nowrap">{periodLabel(p.month, p.year)}</td>
+                        <td className="px-4 py-4 text-body text-surface-600 whitespace-nowrap">
+                          {monthLabel(p.month)}
+                          {/* El anio solo hace falta cuando la tabla no esta acotada a uno. */}
+                          {year === 0 && <span className="block text-small text-surface-400">{p.year}</span>}
+                        </td>
                         <td className="px-4 py-4 text-small text-surface-500">{typeLabel(p.type)}</td>
                         <td className="px-4 py-4 text-body font-medium text-surface-800 whitespace-nowrap">{formatMoney(p.total)}</td>
                         <td className="px-4 py-4 text-body text-surface-600 whitespace-nowrap">{formatDateOnly(p.due_date)}</td>

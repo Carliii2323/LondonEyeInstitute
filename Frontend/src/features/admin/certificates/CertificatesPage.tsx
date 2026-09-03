@@ -6,6 +6,8 @@ import { SearchInput } from '@/components/ui/SearchInput'
 import { Avatar } from '@/components/ui/Avatar'
 import { IssueCertificateModal } from './IssueCertificateModal'
 import { CertificatePreviewModal } from './CertificatePreviewModal'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { Trash2 } from 'lucide-react'
 import { certificateService, type CertificateItem } from '@/services/certificateService'
 import { libretaService, type AdminLibretaRequest } from '@/services/libretaService'
 import { courseService } from '@/services/courseService'
@@ -26,6 +28,23 @@ export function CertificatesPage() {
   const [previewCert, setPreviewCert] = useState<CertificateItem | null>(null)
   const [requests, setRequests] = useState<AdminLibretaRequest[]>([])
   const [reqBusy, setReqBusy] = useState<string | null>(null)
+  // Certificado a eliminar (borrado fisico, con advertencia).
+  const [deleteTarget, setDeleteTarget] = useState<CertificateItem | null>(null)
+  const [isDeleting, setDeleting] = useState(false)
+
+  async function confirmDelete() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await certificateService.remove(deleteTarget.id)
+      setDeleteTarget(null)
+      await fetchList()
+    } catch (err) {
+      setError(formatBackendError(err))
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const fetchList = useCallback(async () => {
     setLoading(true)
@@ -158,12 +177,21 @@ export function CertificatesPage() {
                       <td className="px-5 py-4 text-body text-surface-700">{c.presential_hours ?? '—'}</td>
                       <td className="px-5 py-4 text-body text-surface-600 whitespace-nowrap">{formatDateOnly(c.issued_at)}</td>
                       <td className="px-5 py-4">
-                        <button
-                          onClick={() => setPreviewCert(c)}
-                          className="text-small font-medium text-royal-500 hover:text-royal-600 transition-colors whitespace-nowrap"
-                        >
-                          Ver / Imprimir
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => setPreviewCert(c)}
+                            className="text-small font-medium text-royal-500 hover:text-royal-600 transition-colors whitespace-nowrap"
+                          >
+                            Ver / Imprimir
+                          </button>
+                          <button
+                            onClick={() => setDeleteTarget(c)}
+                            aria-label={`Eliminar certificado de ${c.first_name} ${c.last_name}`}
+                            className="text-small font-medium text-accent-500 hover:text-accent-600 transition-colors whitespace-nowrap"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -185,6 +213,19 @@ export function CertificatesPage() {
         isOpen={previewCert !== null}
         onClose={() => setPreviewCert(null)}
         item={previewCert}
+      />
+
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title="Eliminar certificado"
+        description={`Vas a eliminar el certificado de ${deleteTarget?.first_name ?? ''} ${deleteTarget?.last_name ?? ''} (${deleteTarget?.course_name ?? ''} ${deleteTarget?.year ?? ''}).`}
+        warning="Se borra definitivamente: no se puede deshacer. Si el alumno lo necesita habra que volver a emitirlo."
+        confirmLabel="Eliminar"
+        confirmVariant="danger"
+        icon={<Trash2 size={22} />}
+        isLoading={isDeleting}
       />
     </PageContainer>
   )

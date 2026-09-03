@@ -15,6 +15,9 @@ export default defineConfig({
     // (Tailscale) sin CORS ni mixed-content.
     proxy: {
       '/api': 'http://localhost:8080',
+      // Los avatares se sirven desde el backend (/uploads/avatars/...). Sin este
+      // proxy el navegador los pide al dev server de Vite y da 404 -> foto rota.
+      '/uploads': 'http://localhost:8080',
     },
     // Permite servir bajo el hostname de Tailscale (Funnel/Serve).
     allowedHosts: ['.ts.net'],

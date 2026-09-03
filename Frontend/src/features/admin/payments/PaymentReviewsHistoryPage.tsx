@@ -3,6 +3,8 @@ import { PageContainer } from '@/components/layout/PageContainer'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { MonthYearPicker } from '@/components/ui/MonthYearPicker'
+import { SortableTh } from '@/components/ui/SortableTh'
+import { toggleSort, sortRows, type SortState } from '@/lib/sortTable'
 import { paymentService, type ReviewedPaymentItem } from '@/services/paymentService'
 import { statusBadge, periodLabel, typeLabel, formatMoney, formatDateTime } from '@/lib/paymentFormat'
 import { formatBackendError } from '@/lib/formatBackendError'
@@ -23,6 +25,25 @@ export function PaymentReviewsHistoryPage() {
   const [allMonths, setAllMonths] = useState(false)
   const [month, setMonth] = useState(NOW.getMonth() + 1)
   const [year, setYear] = useState(NOW.getFullYear())
+  // Lista completa del backend (sin paginado) -> el orden se resuelve aca.
+  const [sort, setSort] = useState<SortState | null>(null)
+
+  function handleSort(key: string) {
+    setSort((prev) => toggleSort(prev, key))
+  }
+
+  const sortedItems = sortRows(items, sort, (r, key) => {
+    switch (key) {
+      case 'student': return r.student_name
+      case 'course': return r.course_name
+      case 'period': return r.year * 100 + (r.month ?? 0)
+      case 'type': return r.type
+      case 'amount': return Number(r.total)
+      case 'status': return r.status
+      case 'reviewed': return r.reviewed_at
+      default: return null
+    }
+  })
 
   const fetchReviews = useCallback(async () => {
     setLoading(true)
@@ -70,16 +91,21 @@ export function PaymentReviewsHistoryPage() {
             <table className="w-full">
               <thead>
                 <tr className="bg-surface-50/50 border-b border-surface-100">
-                  {['Alumno', 'Curso', 'Periodo', 'Tipo', 'Monto', 'Estado', 'Medio', 'Revisado'].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-small font-semibold text-surface-500 uppercase tracking-wider">{h}</th>
-                  ))}
+                  <SortableTh sortKey="student" label="Alumno" sort={sort} onSort={handleSort} className="px-4" />
+                  <SortableTh sortKey="course" label="Curso" sort={sort} onSort={handleSort} className="px-4" />
+                  <SortableTh sortKey="period" label="Periodo" sort={sort} onSort={handleSort} className="px-4" />
+                  <SortableTh sortKey="type" label="Tipo" sort={sort} onSort={handleSort} className="px-4" />
+                  <SortableTh sortKey="amount" label="Monto" sort={sort} onSort={handleSort} className="px-4" />
+                  <SortableTh sortKey="status" label="Estado" sort={sort} onSort={handleSort} className="px-4" />
+                  <th className="px-4 py-3 text-left text-small font-semibold text-surface-500 uppercase tracking-wider">Medio</th>
+                  <SortableTh sortKey="reviewed" label="Revisado" sort={sort} onSort={handleSort} className="px-4" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-100">
-                {items.length === 0 ? (
+                {sortedItems.length === 0 ? (
                   <tr><td colSpan={8} className="px-4 py-10 text-center text-body text-surface-400">No hay revisiones en este período.</td></tr>
                 ) : (
-                  items.map((r) => {
+                  sortedItems.map((r) => {
                     const badge = statusBadge(r.status)
                     return (
                       <tr key={r.id} className="hover:bg-surface-50/50 transition-colors">

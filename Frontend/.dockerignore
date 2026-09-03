@@ -1,0 +1,10 @@
+# Lo que NO se manda a Docker al construir la imagen.
+node_modules
+dist
+.env
+.env.local
+tsconfig.tsbuildinfo
+.git
+.gitignore
+.vscode/
+*.log

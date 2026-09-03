@@ -93,6 +93,10 @@ export interface StudentPaymentItem {
 export interface ListStudentsParams {
   search?: string
   status?: string
+  /** Filtra por inscripcion a ese curso. Vacio = todos. */
+  course_id?: string
+  /** Anio lectivo: alumnos cuya inscripcion se solapa con ese anio. 0 = todos. */
+  year?: number
   page?: number
   page_size?: number
 }
@@ -101,6 +105,8 @@ function buildQuery(params: ListStudentsParams): string {
   const q = new URLSearchParams()
   if (params.search) q.set('search', params.search)
   if (params.status) q.set('status', params.status)
+  if (params.course_id) q.set('course_id', params.course_id)
+  if (params.year) q.set('year', String(params.year))
   q.set('page', String(params.page ?? 1))
   q.set('page_size', String(params.page_size ?? 20))
   return q.toString()

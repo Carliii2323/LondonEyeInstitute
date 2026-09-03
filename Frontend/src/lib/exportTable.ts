@@ -120,3 +120,23 @@ export async function exportTableToXlsx(t: TableExport): Promise<void> {
   const output = writeXlsxFile(rows, { sheet: sheetName(t.subtitle ?? t.title), columns })
   await output.toFile(`${t.filename ?? slug(t.title)}-${dateStamp()}.xlsx`)
 }
+
+/**
+ * Exporta varias tablas como HOJAS de un mismo archivo .xlsx.
+ * El nombre de cada hoja sale del `title` de su tabla.
+ * Se usa, por ejemplo, en Asistencia: hoja 1 = inasistencias por término,
+ * hoja 2 = planilla anual (matriz alumnos x fechas).
+ */
+export async function exportTablesToXlsx(tables: TableExport[], filename: string): Promise<void> {
+  const sheets = tables.map((t) => ({
+    data: [
+      t.head.map((h) => ({ type: String, value: h, fontWeight: 'bold' as const })),
+      ...t.body.map<Row>((row) => row.map(cellToXlsx)),
+    ] as SheetData,
+    sheet: sheetName(t.title),
+    columns: t.columnWidths?.map((w) => ({ width: w })),
+  }))
+
+  const output = writeXlsxFile(sheets)
+  await output.toFile(`${filename}-${dateStamp()}.xlsx`)
+}

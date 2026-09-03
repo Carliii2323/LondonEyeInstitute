@@ -1,0 +1,111 @@
+# ============================================================
+# compose.yaml — el "plano" del sistema.
+#
+# Describe las 4 cajas, como se conectan y que datos sobreviven.
+# El mismo archivo sirve en tu MV de prueba y en el VPS: lo unico
+# que cambia entre uno y otro es el archivo .env.
+#
+# Comando unico para levantar todo:   docker compose up -d --build
+# ============================================================
+
+name: londoneye
+
+services:
+
+  # ---------- Base de datos ----------
+  # No expone ningun puerto: solo la API puede hablarle, desde la
+  # red interna de Docker. Desde internet es invisible.
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # Hasta que este comando no responda OK, Postgres no se
+      # considera listo y la API no arranca. Evita el clasico
+      # "no se pudo conectar a la base de datos" del primer arranque.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  # ---------- Migraciones ----------
+  # Contenedor de un solo uso: espera a que la base este lista,
+  # aplica las migraciones que falten, y se apaga.
+  #
+  # Lleva la cuenta de lo aplicado en una tabla (schema_migrations),
+  # asi que se puede correr todas las veces que quieras: si no hay
+  # nada nuevo, no hace nada. Eso es lo que el Makefile con psql
+  # no podia hacer.
+  migrate:
+    image: migrate/migrate:v4.18.1
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./Backend/migrations:/migrations:ro
+    command:
+      - "-path=/migrations"
+      - "-database=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable"
+      - "up"
+    restart: "no"
+
+  # ---------- Backend Go ----------
+  # Tampoco expone puertos al exterior: solo Caddy le habla.
+  api:
+    build:
+      context: ./Backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        # Espera a que las migraciones terminen BIEN antes de arrancar.
+        condition: service_completed_successfully
+    env_file:
+      - .env
+    environment:
+      # Estas se calculan aca y pisan lo que venga del .env.
+      # "db" es el nombre del servicio: Docker lo resuelve como si
+      # fuera un hostname dentro de su red interna.
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable
+      PORT: "8080"
+      STORAGE_PATH: /app/uploads
+    volumes:
+      # <-- ESTA LINEA es la que evita perder los DNIs y comprobantes.
+      # La carpeta ./data/uploads vive en el disco del servidor; el
+      # contenedor se puede destruir mil veces que los archivos quedan.
+      - ./data/uploads:/app/uploads
+    expose:
+      - "8080"
+
+  # ---------- Caddy: sirve el frontend + HTTPS ----------
+  # La unica caja abierta a internet.
+  web:
+    build:
+      context: ./Frontend
+      args:
+        VITE_API_URL: /api/v1
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Aca Caddy guarda los certificados HTTPS. Sin este volumen
+      # pediria uno nuevo en cada deploy y Let's Encrypt terminaria
+      # bloqueando el dominio por exceso de pedidos.
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
