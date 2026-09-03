@@ -4,6 +4,10 @@ VALUES ($1, $2, 'cuota_mensual', $3, $4, $5, $6, 'pending')
 ON CONFLICT (student_id, course_id, month, year) WHERE type = 'cuota_mensual' DO NOTHING;
 
 -- name: ListPayments :many
+-- Orden configurable desde la UI (headers clickeables). sort_by/order_dir son
+-- PARAMETROS (no SQL armado a mano), asi que no hay riesgo de inyeccion: un
+-- valor no contemplado simplemente cae al orden por defecto (periodo desc).
+-- Se usan CASE separados por tipo porque un CASE no puede mezclar text/date/numeric.
 SELECT
     p.id, p.student_id, p.course_id, p.type, p.month, p.year,
     p.amount, p.due_date, p.status, p.late_fee_applied,
@@ -15,15 +19,41 @@ JOIN students s ON p.student_id = s.id
 JOIN users u ON s.id = u.id
 JOIN courses c ON p.course_id = c.id
 WHERE
-    ($1 = '' OR p.student_id::text = $1)
-    AND ($2 = '' OR p.course_id::text = $2)
-    AND ($3 = '' OR p.status::text = $3)
-    AND ($4 = '' OR p.type::text = $4)
-    AND ($5::int = 0 OR p.month = $5::int)
-    AND ($6::int = 0 OR p.year = $6::int)
-    AND ($7 = '' OR (u.first_name || ' ' || u.last_name) ILIKE '%' || $7 || '%' OR s.dni ILIKE '%' || $7 || '%')
-ORDER BY p.year DESC, p.month DESC NULLS LAST, p.created_at DESC
-LIMIT $8 OFFSET $9;
+    (sqlc.arg(student_id)::text = '' OR p.student_id::text = sqlc.arg(student_id)::text)
+    AND (sqlc.arg(course_id)::text = '' OR p.course_id::text = sqlc.arg(course_id)::text)
+    AND (sqlc.arg(status)::text = '' OR p.status::text = sqlc.arg(status)::text)
+    AND (sqlc.arg(type)::text = '' OR p.type::text = sqlc.arg(type)::text)
+    AND (sqlc.arg(month)::int = 0 OR p.month = sqlc.arg(month)::int)
+    AND (sqlc.arg(year)::int = 0 OR p.year = sqlc.arg(year)::int)
+    AND (sqlc.arg(search)::text = '' OR (u.first_name || ' ' || u.last_name) ILIKE '%' || sqlc.arg(search)::text || '%' OR s.dni ILIKE '%' || sqlc.arg(search)::text || '%')
+ORDER BY
+    CASE WHEN sqlc.arg(order_dir)::text = 'asc' THEN
+        CASE sqlc.arg(sort_by)::text
+            WHEN 'student' THEN u.last_name || ' ' || u.first_name
+            WHEN 'course'  THEN c.name
+            WHEN 'status'  THEN p.status::text
+            WHEN 'type'    THEN p.type::text
+        END
+    END ASC NULLS LAST,
+    CASE WHEN sqlc.arg(order_dir)::text = 'desc' THEN
+        CASE sqlc.arg(sort_by)::text
+            WHEN 'student' THEN u.last_name || ' ' || u.first_name
+            WHEN 'course'  THEN c.name
+            WHEN 'status'  THEN p.status::text
+            WHEN 'type'    THEN p.type::text
+        END
+    END DESC NULLS LAST,
+    CASE WHEN sqlc.arg(sort_by)::text = 'due_date' AND sqlc.arg(order_dir)::text = 'asc'  THEN p.due_date END ASC NULLS LAST,
+    CASE WHEN sqlc.arg(sort_by)::text = 'due_date' AND sqlc.arg(order_dir)::text = 'desc' THEN p.due_date END DESC NULLS LAST,
+    CASE WHEN sqlc.arg(sort_by)::text = 'amount'   AND sqlc.arg(order_dir)::text = 'asc'  THEN p.amount END ASC NULLS LAST,
+    CASE WHEN sqlc.arg(sort_by)::text = 'amount'   AND sqlc.arg(order_dir)::text = 'desc' THEN p.amount END DESC NULLS LAST,
+    -- 'period' ordena cronologico (anio + mes), no alfabetico. Con el filtro de
+    -- anio puesto equivale a ordenar por mes. Los pagos sin mes (cargos anuales)
+    -- van al principio del anio.
+    CASE WHEN sqlc.arg(sort_by)::text = 'period'   AND sqlc.arg(order_dir)::text = 'asc'  THEN p.year * 100 + COALESCE(p.month, 0) END ASC NULLS LAST,
+    CASE WHEN sqlc.arg(sort_by)::text = 'period'   AND sqlc.arg(order_dir)::text = 'desc' THEN p.year * 100 + COALESCE(p.month, 0) END DESC NULLS LAST,
+    p.year DESC, p.month DESC NULLS LAST, p.created_at DESC
+LIMIT sqlc.arg(page_limit) OFFSET sqlc.arg(page_offset);
 
 -- name: CountPayments :one
 SELECT COUNT(*)

@@ -70,3 +70,12 @@ func (h *CertificateHandler) GetByID(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, detail)
 }
+
+// Delete — DELETE /admin/certificates/:id (borrado físico)
+func (h *CertificateHandler) Delete(c *gin.Context) {
+	if err := h.svc.Delete(c.Request.Context(), c.Param("id")); err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, dto.StatusResponse{Message: "certificado eliminado"})
+}

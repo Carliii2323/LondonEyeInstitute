@@ -23,24 +23,29 @@ func NewStudentService(pool *pgxpool.Pool, s storage.Storage) *StudentService {
 	return &StudentService{pool: pool, storage: s}
 }
 
-func (s *StudentService) List(ctx context.Context, search, status string, page, pageSize int) (*dto.PaginatedResponse[dto.StudentListItem], error) {
+// List lista alumnos con filtros opcionales. courseID vacio y year 0 = sin filtrar.
+func (s *StudentService) List(ctx context.Context, search, status, courseID string, year, page, pageSize int) (*dto.PaginatedResponse[dto.StudentListItem], error) {
 	q := dbsqlc.New(s.pool)
 
 	offset := int32((page - 1) * pageSize)
 
 	rows, err := q.ListStudents(ctx, dbsqlc.ListStudentsParams{
-		Column1: search,
-		Column2: status,
-		Limit:   int32(pageSize),
-		Offset:  offset,
+		Search:     search,
+		Status:     status,
+		CourseID:   courseID,
+		Year:       int32(year),
+		PageLimit:  int32(pageSize),
+		PageOffset: offset,
 	})
 	if err != nil {
 		return nil, apperror.ErrInternal
 	}
 
 	total, err := q.CountStudents(ctx, dbsqlc.CountStudentsParams{
-		Column1: search,
-		Column2: status,
+		Search:   search,
+		Status:   status,
+		CourseID: courseID,
+		Year:     int32(year),
 	})
 	if err != nil {
 		return nil, apperror.ErrInternal

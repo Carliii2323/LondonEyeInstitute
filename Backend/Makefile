@@ -1,4 +1,4 @@
-.PHONY: run build migrate-up migrate-down sqlc-gen seed lint test deps
+.PHONY: run build migrate-up migrate-down sqlc-gen seed lint test deps billing-on billing-off billing-status
 
 run:
 	go run ./cmd/api/main.go
@@ -24,9 +24,11 @@ migrate-up:
 	psql "$(DATABASE_URL)" -f migrations/014_inbound_receipts.up.sql
 	psql "$(DATABASE_URL)" -f migrations/015_inbound_detected_fields.up.sql
 	psql "$(DATABASE_URL)" -f migrations/016_student_dni_files.up.sql
+	psql "$(DATABASE_URL)" -f migrations/017_auto_billing_flag.up.sql
 
 # migrate-down revierte en orden inverso.
 migrate-down:
+	psql "$(DATABASE_URL)" -f migrations/017_auto_billing_flag.down.sql
 	psql "$(DATABASE_URL)" -f migrations/016_student_dni_files.down.sql
 	psql "$(DATABASE_URL)" -f migrations/015_inbound_detected_fields.down.sql
 	psql "$(DATABASE_URL)" -f migrations/014_inbound_receipts.down.sql
@@ -56,3 +58,16 @@ test:
 deps:
 	go mod tidy
 	go mod download
+
+# --- Cobro automatico (cuotas + derechos por cron) -------------------
+# Interruptor de mantenimiento/desarrollo. NO afecta el disparo MANUAL de jobs.
+billing-status:
+	@psql "$(DATABASE_URL)" -tAc "SELECT CASE WHEN auto_billing_enabled THEN 'ACTIVADO' ELSE 'PARADO' END FROM institute_settings WHERE id = 1;"
+
+billing-off:
+	@psql "$(DATABASE_URL)" -c "UPDATE institute_settings SET auto_billing_enabled = FALSE WHERE id = 1;"
+	@echo "Cobro automatico PARADO (el cron no genera cuotas ni derechos)."
+
+billing-on:
+	@psql "$(DATABASE_URL)" -c "UPDATE institute_settings SET auto_billing_enabled = TRUE WHERE id = 1;"
+	@echo "Cobro automatico ACTIVADO."

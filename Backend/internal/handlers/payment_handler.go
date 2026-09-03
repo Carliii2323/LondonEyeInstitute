@@ -28,6 +28,8 @@ func (h *PaymentHandler) List(c *gin.Context) {
 		c.DefaultQuery("status", ""),
 		c.DefaultQuery("type", ""),
 		c.DefaultQuery("search", ""),
+		c.DefaultQuery("sort_by", ""),   // columna (whitelist en el service)
+		c.DefaultQuery("order_dir", ""), // asc | desc
 		queryInt(c, "month", 0),
 		queryInt(c, "year", 0),
 		queryInt(c, "page", 1),

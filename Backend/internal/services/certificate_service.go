@@ -270,3 +270,20 @@ func (s *CertificateService) GetByID(ctx context.Context, id, requesterID, role 
 		Status:          string(r.Status),
 	}, nil
 }
+
+// Delete elimina un certificado emitido (borrado FÍSICO). Pensado para los
+// emitidos por error; la UI confirma con una advertencia antes de llamar.
+func (s *CertificateService) Delete(ctx context.Context, id string) error {
+	var cid pgtype.UUID
+	if err := cid.Scan(id); err != nil {
+		return apperror.ErrBadRequest
+	}
+	n, err := dbsqlc.New(s.pool).DeleteCertificate(ctx, cid)
+	if err != nil {
+		return apperror.New(apperror.ErrInternal, "error al eliminar el certificado", "DELETE_ERROR")
+	}
+	if n == 0 {
+		return apperror.ErrNotFound
+	}
+	return nil
+}

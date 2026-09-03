@@ -46,3 +46,8 @@ JOIN students s ON cert.student_id = s.id
 JOIN users u ON s.id = u.id
 JOIN courses c ON cert.course_id = c.id
 WHERE cert.id = $1 LIMIT 1;
+
+-- name: DeleteCertificate :execrows
+-- Borrado FISICO. Se usa para certificados emitidos por error: si no, se
+-- acumulan y ocupan lugar. La UI pide confirmacion antes de llamar.
+DELETE FROM certificates WHERE id = $1;

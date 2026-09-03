@@ -132,6 +132,7 @@ func (s *Server) registerRoutes(cfg *config.Config, pool *pgxpool.Pool, runner *
 		adminCert := admin.Group("/certificates")
 		adminCert.POST("", certh.Issue)
 		adminCert.GET("", certh.List)
+		adminCert.DELETE("/:id", certh.Delete)
 
 		// Libreta — solicitudes de descarga (admin: revisar/aprobar)
 		libh := handlers.NewLibretaHandler(pool)

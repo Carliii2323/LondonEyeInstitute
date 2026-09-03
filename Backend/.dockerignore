@@ -1,0 +1,24 @@
+# Lo que NO se manda a Docker al construir la imagen.
+# Ojo: esto es distinto de .gitignore. Docker no mira git: manda al
+# build todo lo que haya en la carpeta salvo lo que se liste aca.
+
+# Secretos: nunca deben entrar a una imagen.
+.env
+.env.*
+!.env.example
+
+# Comprobantes y documentos reales: van por volumen, no dentro de la imagen.
+uploads/
+
+# Binarios compilados en Windows.
+sge-london-eye
+sge-london-eye.exe
+
+# Cosas que no aportan al build.
+.git
+.gitignore
+.idea/
+.vscode/
+docs/
+README.md
+Makefile

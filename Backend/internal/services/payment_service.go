@@ -26,19 +26,47 @@ func NewPaymentService(pool *pgxpool.Pool, s storage.Storage) *PaymentService {
 	return &PaymentService{pool: pool, storage: s}
 }
 
-func (s *PaymentService) List(ctx context.Context, studentID, courseID, status, paymentType, search string, month, year, page, pageSize int) (*dto.PaginatedResponse[dto.PaymentListItem], error) {
+// paymentSortColumns — columnas por las que la UI puede ordenar (headers
+// clickeables). Es una whitelist: cualquier otro valor se descarta y la query
+// cae a su orden por defecto (periodo desc).
+var paymentSortColumns = map[string]bool{
+	"student":  true,
+	"course":   true,
+	"status":   true,
+	"type":     true,
+	"due_date": true,
+	"amount":   true,
+	"period":   true, // cronologico: anio + mes
+}
+
+// normalizePaymentSort valida el pedido de orden de la UI.
+func normalizePaymentSort(sortBy, orderDir string) (string, string) {
+	if !paymentSortColumns[sortBy] {
+		return "", "" // sin orden explicito -> default de la query
+	}
+	if orderDir != "asc" && orderDir != "desc" {
+		orderDir = "asc"
+	}
+	return sortBy, orderDir
+}
+
+func (s *PaymentService) List(ctx context.Context, studentID, courseID, status, paymentType, search, sortBy, orderDir string, month, year, page, pageSize int) (*dto.PaginatedResponse[dto.PaymentListItem], error) {
 	q := dbsqlc.New(s.pool)
 
+	sortBy, orderDir = normalizePaymentSort(sortBy, orderDir)
+
 	rows, err := q.ListPayments(ctx, dbsqlc.ListPaymentsParams{
-		Column1: studentID,
-		Column2: courseID,
-		Column3: status,
-		Column4: paymentType,
-		Column5: int32(month),
-		Column6: int32(year),
-		Column7: search,
-		Limit:   int32(pageSize),
-		Offset:  int32((page - 1) * pageSize),
+		StudentID:  studentID,
+		CourseID:   courseID,
+		Status:     status,
+		Type:       paymentType,
+		Month:      int32(month),
+		Year:       int32(year),
+		Search:     search,
+		SortBy:     sortBy,
+		OrderDir:   orderDir,
+		PageLimit:  int32(pageSize),
+		PageOffset: int32((page - 1) * pageSize),
 	})
 	if err != nil {
 		return nil, apperror.ErrInternal
@@ -706,4 +734,19 @@ func (s *PaymentService) explainNoRows(ctx context.Context, q *dbsqlc.Queries, p
 		return apperror.New(apperror.ErrNotFound, "pago no encontrado", "PAYMENT_NOT_FOUND")
 	}
 	return apperror.New(apperror.ErrPaymentNotPending, stateMsg, "PAYMENT_INVALID_STATE")
+}
+
+// IsAutoBillingEnabled indica si el cobro automático está activo. Lo consulta el
+// scheduler antes de correr los jobs de cobro (cuotas y derechos). El interruptor
+// se maneja desde bash sobre institute_settings:
+//
+//	make billing-status | make billing-off | make billing-on
+//
+// El disparo MANUAL de los jobs no pasa por acá: es una acción explícita.
+func (s *PaymentService) IsAutoBillingEnabled(ctx context.Context) (bool, error) {
+	settings, err := dbsqlc.New(s.pool).GetSettings(ctx)
+	if err != nil {
+		return false, err
+	}
+	return settings.AutoBillingEnabled, nil
 }

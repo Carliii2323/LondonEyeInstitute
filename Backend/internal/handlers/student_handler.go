@@ -30,10 +30,12 @@ func NewStudentHandler(pool *pgxpool.Pool, store storage.Storage) *StudentHandle
 func (h *StudentHandler) List(c *gin.Context) {
 	search := c.DefaultQuery("search", "")
 	status := c.DefaultQuery("status", "")
+	courseID := c.DefaultQuery("course_id", "")
+	year := queryInt(c, "year", 0) // 0 = todos los anios
 	page := queryInt(c, "page", 1)
 	pageSize := queryInt(c, "page_size", 20)
 
-	result, err := h.svc.List(c.Request.Context(), search, status, page, pageSize)
+	result, err := h.svc.List(c.Request.Context(), search, status, courseID, year, page, pageSize)
 	if err != nil {
 		respondError(c, err)
 		return

@@ -15,6 +15,11 @@ LIMIT 1;
 
 -- name: ListStudents :many
 -- Incluye el tutor y los cursos activos (nombres) del alumno.
+-- Filtros opcionales: '' (texto) o 0 (anio) significan "sin filtrar".
+-- course_id + year filtran por INSCRIPCION: busca una inscripcion del alumno en
+-- ese curso cuya vigencia se solape con el anio lectivo pedido (sigue activa, o
+-- fue dada de baja durante/despues de ese anio). Va como EXISTS aparte para no
+-- alterar la columna "courses", que sigue listando solo los cursos ACTIVOS.
 SELECT
     u.id, u.email, u.first_name, u.last_name, u.phone, u.status, u.email_verified, u.created_at,
     s.dni, s.tutor_name,
@@ -24,25 +29,50 @@ JOIN users u ON s.id = u.id
 LEFT JOIN enrollments e ON e.student_id = s.id AND e.status = 'active'
 LEFT JOIN courses c ON c.id = e.course_id
 WHERE
-    ($1 = '' OR u.first_name ILIKE '%' || $1 || '%'
-        OR u.last_name ILIKE '%' || $1 || '%'
-        OR u.email ILIKE '%' || $1 || '%'
-        OR s.dni ILIKE '%' || $1 || '%')
-    AND ($2 = '' OR u.status::text = $2)
+    (sqlc.arg(search)::text = '' OR u.first_name ILIKE '%' || sqlc.arg(search)::text || '%'
+        OR u.last_name ILIKE '%' || sqlc.arg(search)::text || '%'
+        OR u.email ILIKE '%' || sqlc.arg(search)::text || '%'
+        OR s.dni ILIKE '%' || sqlc.arg(search)::text || '%')
+    AND (sqlc.arg(status)::text = '' OR u.status::text = sqlc.arg(status)::text)
+    AND (
+        (sqlc.arg(course_id)::text = '' AND sqlc.arg(year)::int = 0)
+        OR EXISTS (
+            SELECT 1 FROM enrollments f
+            WHERE f.student_id = s.id
+              AND (sqlc.arg(course_id)::text = '' OR f.course_id::text = sqlc.arg(course_id)::text)
+              AND (sqlc.arg(year)::int = 0 OR (
+                    f.enrolled_at < make_date(sqlc.arg(year)::int + 1, 1, 1)
+                AND (f.dropped_at IS NULL OR f.dropped_at >= make_date(sqlc.arg(year)::int, 1, 1))
+              ))
+        )
+    )
 GROUP BY u.id, s.dni, s.tutor_name
 ORDER BY u.created_at DESC
-LIMIT $3 OFFSET $4;
+LIMIT sqlc.arg(page_limit) OFFSET sqlc.arg(page_offset);
 
 -- name: CountStudents :one
+-- Mismos filtros que ListStudents (para que la paginacion cuadre).
 SELECT COUNT(*)
 FROM students s
 JOIN users u ON s.id = u.id
 WHERE
-    ($1 = '' OR u.first_name ILIKE '%' || $1 || '%'
-        OR u.last_name ILIKE '%' || $1 || '%'
-        OR u.email ILIKE '%' || $1 || '%'
-        OR s.dni ILIKE '%' || $1 || '%')
-    AND ($2 = '' OR u.status::text = $2);
+    (sqlc.arg(search)::text = '' OR u.first_name ILIKE '%' || sqlc.arg(search)::text || '%'
+        OR u.last_name ILIKE '%' || sqlc.arg(search)::text || '%'
+        OR u.email ILIKE '%' || sqlc.arg(search)::text || '%'
+        OR s.dni ILIKE '%' || sqlc.arg(search)::text || '%')
+    AND (sqlc.arg(status)::text = '' OR u.status::text = sqlc.arg(status)::text)
+    AND (
+        (sqlc.arg(course_id)::text = '' AND sqlc.arg(year)::int = 0)
+        OR EXISTS (
+            SELECT 1 FROM enrollments f
+            WHERE f.student_id = s.id
+              AND (sqlc.arg(course_id)::text = '' OR f.course_id::text = sqlc.arg(course_id)::text)
+              AND (sqlc.arg(year)::int = 0 OR (
+                    f.enrolled_at < make_date(sqlc.arg(year)::int + 1, 1, 1)
+                AND (f.dropped_at IS NULL OR f.dropped_at >= make_date(sqlc.arg(year)::int, 1, 1))
+              ))
+        )
+    );
 
 -- name: UpdateStudentData :exec
 UPDATE students

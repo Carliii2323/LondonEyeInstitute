@@ -70,6 +70,7 @@ func setupSchema(dsn string) error {
 		"../../migrations/014_inbound_receipts.up.sql",
 		"../../migrations/015_inbound_detected_fields.up.sql",
 		"../../migrations/016_student_dni_files.up.sql",
+		"../../migrations/017_auto_billing_flag.up.sql",
 	} {
 		sql, err := os.ReadFile(f)
 		if err != nil {

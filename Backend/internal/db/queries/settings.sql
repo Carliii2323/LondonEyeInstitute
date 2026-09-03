@@ -1,6 +1,6 @@
 -- name: GetSettings :one
 -- Versión reducida para los servicios/crons que solo necesitan estos campos.
-SELECT monthly_due_day, no_payment_months, grade_grace_days_january
+SELECT monthly_due_day, no_payment_months, grade_grace_days_january, auto_billing_enabled
 FROM institute_settings WHERE id = 1;
 
 -- name: GetInstituteSettings :one
