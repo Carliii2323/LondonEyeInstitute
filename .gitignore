@@ -8,3 +8,6 @@ Entrega-Codigo-Completo.txt
 
 # Datos persistentes del servidor (uploads)
 data/
+
+# Reportes de importacion de alumnos: contienen las contraseñas generadas
+importacion-*.csv

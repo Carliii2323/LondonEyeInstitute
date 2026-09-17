@@ -13,8 +13,9 @@ name: londoneye
 services:
 
   # ---------- Base de datos ----------
-  # No expone ningun puerto: solo la API puede hablarle, desde la
-  # red interna de Docker. Desde internet es invisible.
+  # Desde internet es invisible. La API le habla por la red interna
+  # de Docker, y el puerto publicado de abajo sirve solo para poder
+  # conectarse con DBeaver a traves de un tunel SSH.
   db:
     image: postgres:17-alpine
     restart: unless-stopped
@@ -22,6 +23,17 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      # El "127.0.0.1:" del principio es TODO. Con el, Postgres solo
+      # escucha en el loopback del servidor: se llega desde el propio
+      # servidor (y por lo tanto por un tunel SSH), nunca desde
+      # internet.
+      #
+      # Si algun dia lo dejas como "5432:5432" a secas, Postgres queda
+      # escuchando en TODAS las interfaces y expuesto al mundo. Y ojo:
+      # en ese caso ufw NO te protege, porque Docker escribe sus
+      # propias reglas de iptables por delante de las de ufw.
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

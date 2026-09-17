@@ -2,18 +2,53 @@
 # Caddyfile — configuracion del portero.
 #
 # SITE_ADDRESS decide COMO se sirve el sistema, y es lo unico que
-# cambia entre tu MV de prueba y el servidor de produccion:
+# cambia entre pruebas y produccion. Se define en el .env:
 #
-#   :80                          -> HTTP simple (MV / pruebas locales)
-#   londoneyeenglishinstitute.site -> Caddy saca y renueva el
-#                                     certificado HTTPS solo, gratis
+#   :80
+#       HTTP simple, se entra por IP. Sin certificado.
 #
-# Se define en el archivo .env. No hay que tocar nada mas.
+#   londoneyeenglishinstitute.site, www.londoneyeenglishinstitute.site
+#       Caddy saca y renueva los certificados HTTPS solo, gratis,
+#       para los dos nombres. Separados por coma, en una sola linea.
+#
+# OJO: este archivo se copia DENTRO de la imagen al construirla, asi
+# que si lo cambias hace falta "docker compose up -d --build".
+# Con un "up -d" a secas el cambio no se aplica.
 # ============================================================
 
 {$SITE_ADDRESS} {
 	# Comprime las respuestas: la app carga bastante mas rapido.
 	encode gzip
+
+	# --- Cabeceras de seguridad -------------------------------
+	# El sistema maneja DNIs y datos de pago, asi que conviene
+	# cerrarle al navegador las puertas que no necesita.
+	header {
+		# Nadie puede embeber el ERP dentro de un iframe ajeno
+		# (evita el clickjacking: una pagina trucha que pone el
+		# sistema invisible arriba de otra cosa).
+		X-Frame-Options "DENY"
+
+		# El navegador respeta el Content-Type declarado en vez de
+		# adivinarlo mirando el contenido.
+		X-Content-Type-Options "nosniff"
+
+		# Al salir hacia un sitio externo no se filtra la URL
+		# completa (que puede llevar IDs de alumnos), solo el origen.
+		Referrer-Policy "strict-origin-when-cross-origin"
+
+		# No anunciar que servidor corre por atras.
+		-Server
+
+		# HSTS: obliga al navegador a usar HTTPS siempre.
+		# Arranca en 1 dia a proposito. Cuando lleves un par de
+		# semanas con el certificado andando bien, subilo a
+		# max-age=31536000 (un año), que es el valor recomendado.
+		#
+		# Solo tiene efecto cuando ya hay dominio y HTTPS; con
+		# SITE_ADDRESS=:80 el navegador la ignora.
+		Strict-Transport-Security "max-age=86400"
+	}
 
 	# /api/* -> al backend Go.
 	handle /api/* {
@@ -23,6 +58,33 @@
 	# /uploads/* -> tambien al Go (ahi se sirven los avatares).
 	handle /uploads/* {
 		reverse_proxy api:8080
+	}
+
+	# --- Archivos ocultos: 404 ---------------------------------
+	# Apenas se emitio el certificado aparecieron bots pidiendo
+	# /.env, /.env.local y /.git/config, a ver si hay contraseñas
+	# expuestas. No filtraban nada (esos archivos no estan en esta
+	# imagen), pero la regla de la SPA les contestaba 200 con el
+	# index.html, y un 200 le dice al bot "aca hay algo, segui
+	# probando". Con esto reciben un 404 seco.
+	#
+	# /[.] = una barra seguida de un punto: agarra /.env y
+	# /.git/config, pero no /assets/index.js (ahi el punto no viene
+	# pegado a una barra). Se usa [.] y no \. para no depender de
+	# como el Caddyfile interpreta la barra invertida.
+	#
+	# /.well-known/ queda afuera a proposito: ahi van cosas legitimas
+	# como las verificaciones de certificados.
+	#
+	# Caddy evalua los "handle" con matcher con nombre ANTES que el
+	# "handle" sin matcher de abajo, asi que esto corre primero sin
+	# importar el orden en que aparezca en el archivo.
+	@ocultos {
+		path_regexp /[.]
+		not path /.well-known/*
+	}
+	handle @ocultos {
+		respond 404
 	}
 
 	# Todo lo demas -> la SPA de React.
