@@ -77,6 +77,12 @@ func (s *EnrollmentService) Enroll(ctx context.Context, req dto.EnrollRequest) (
 		return nil, apperror.New(apperror.ErrNotFound, "curso no encontrado", "COURSE_NOT_FOUND")
 	}
 
+	// 1.b Un curso dado de baja no acepta inscripciones nuevas (M5-03): antes
+	// las aceptaba mientras tuviera cupo, y encima la inscripcion lo reactivaba.
+	if course.Status == dbsqlc.CourseStatusInactivo {
+		return nil, apperror.New(apperror.ErrBadRequest, "el curso está dado de baja", "COURSE_INACTIVE")
+	}
+
 	// 2. Verificar que no esté ya inscripto — distinguir ErrNoRows de error real
 	_, err = q.GetActiveEnrollment(ctx, dbsqlc.GetActiveEnrollmentParams{
 		StudentID: studentID,
@@ -136,10 +142,7 @@ func (s *EnrollmentService) Enroll(ctx context.Context, req dto.EnrollRequest) (
 
 	// 7. Recalcular status del curso
 	newEnrolled := enrolled + 1
-	newStatus := dbsqlc.CourseStatusActivo
-	if newEnrolled >= int64(course.Capacity) {
-		newStatus = dbsqlc.CourseStatusCupoCompleto
-	}
+	newStatus := nextCourseStatus(course.Status, newEnrolled, course.Capacity)
 	if err := q.UpdateCourseStatus(ctx, dbsqlc.UpdateCourseStatusParams{
 		ID:     courseID,
 		Status: newStatus,
@@ -201,10 +204,8 @@ func (s *EnrollmentService) Drop(ctx context.Context, enrollmentID string) error
 		return apperror.New(apperror.ErrInternal, "error al contar inscripciones", "COUNT_ERROR")
 	}
 
-	newStatus := dbsqlc.CourseStatusActivo
-	if count >= int64(course.Capacity) {
-		newStatus = dbsqlc.CourseStatusCupoCompleto
-	}
+	// Preserva la baja logica: dar de baja a un alumno no revive el curso.
+	newStatus := nextCourseStatus(course.Status, count, course.Capacity)
 	if err := q.UpdateCourseStatus(ctx, dbsqlc.UpdateCourseStatusParams{
 		ID:     courseID,
 		Status: newStatus,

@@ -343,14 +343,16 @@ func (s *CourseService) recalcStatus(ctx context.Context, q *dbsqlc.Queries, cou
 		return err
 	}
 
-	newStatus := dbsqlc.CourseStatusActivo
-	if count >= int64(capacity) {
-		newStatus = dbsqlc.CourseStatusCupoCompleto
+	// Hay que leer el estado actual: cambiar la capacidad de un curso dado de
+	// baja no debe reactivarlo (M5-03).
+	current, err := q.GetCourseStatus(ctx, courseID)
+	if err != nil {
+		return err
 	}
 
 	return q.UpdateCourseStatus(ctx, dbsqlc.UpdateCourseStatusParams{
 		ID:     courseID,
-		Status: newStatus,
+		Status: nextCourseStatus(current, count, capacity),
 	})
 }
 

@@ -262,3 +262,25 @@ func userCourseIDs(ctx context.Context, q *dbsqlc.Queries, userID, role string) 
 		return nil, nil
 	}
 }
+
+// nextCourseStatus decide el estado del curso segun su ocupacion, PRESERVANDO
+// la baja logica.
+//
+// El enum tiene tres estados (activo, cupo_completo, inactivo) pero el
+// recalculo contemplaba solo dos, asi que un curso dado de baja volvia a
+// 'activo' en cuanto alguien se inscribia o se daba de baja de el: la baja se
+// deshacia sola y sin dejar rastro, contra la decision D1 ("baja logica,
+// reversible, no hay borrado fisico"). Hallazgo M5-03.
+//
+// Vive aca, y no en cada service, porque la regla estaba duplicada en tres
+// lugares (Enroll, Drop y CourseService.recalcStatus) y arreglar uno solo
+// dejaba el bug vivo por los otros caminos.
+func nextCourseStatus(current dbsqlc.CourseStatus, enrolled int64, capacity int32) dbsqlc.CourseStatus {
+	if current == dbsqlc.CourseStatusInactivo {
+		return dbsqlc.CourseStatusInactivo
+	}
+	if enrolled >= int64(capacity) {
+		return dbsqlc.CourseStatusCupoCompleto
+	}
+	return dbsqlc.CourseStatusActivo
+}

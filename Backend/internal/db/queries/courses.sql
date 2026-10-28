@@ -101,7 +101,9 @@ FROM courses c;
 SELECT teacher_id FROM courses WHERE id = $1;
 
 -- name: LockCourse :one
-SELECT id, capacity, price_monthly FROM courses
+-- Trae tambien el status: sin el, el recalculo no puede distinguir un curso
+-- dado de baja y lo reactiva solo (M5-03).
+SELECT id, capacity, price_monthly, status FROM courses
 WHERE id = $1
 FOR UPDATE;
 
@@ -123,3 +125,6 @@ LEFT JOIN payments pay ON pay.student_id = e.student_id
     AND pay.year = $3::int
 WHERE e.course_id = $1 AND e.status = 'active'
 ORDER BY u.last_name, u.first_name;
+
+-- name: GetCourseStatus :one
+SELECT status FROM courses WHERE id = $1;
