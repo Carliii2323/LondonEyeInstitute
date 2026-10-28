@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 	"path/filepath"
+	"time"
 
 	"sge-london-eye/internal/config"
 	"sge-london-eye/internal/cron"
@@ -30,11 +31,16 @@ func (s *Server) registerRoutes(cfg *config.Config, pool *pgxpool.Pool, runner *
 	auth := api.Group("/auth")
 	{
 		h := handlers.NewAuthHandler(pool, cfg, mail, storage.NewLocalStorage(cfg.StoragePath, "/uploads"))
-		auth.POST("/register", h.Register)
-		auth.POST("/login", h.Login)
+		// Rate limiting en los endpoints publicos (M1-03). Cada uno tiene su
+		// propia cubeta. Los numeros estan pensados para frenar fuerza bruta y
+		// bombardeo de mails sin molestar al uso normal: nadie entra bien 6
+		// veces en un minuto, ni se registra 6 veces en diez.
+		auth.POST("/register", middleware.RateLimit(5, 10*time.Minute), h.Register)
+		auth.POST("/login", middleware.RateLimit(5, time.Minute), h.Login)
 		auth.POST("/refresh", h.Refresh)
 		auth.POST("/verify-email", h.VerifyEmail)
-		auth.POST("/resend-verification", h.ResendVerification)
+		// El mas restrictivo: cada llamada dispara un mail real.
+		auth.POST("/resend-verification", middleware.RateLimit(3, 10*time.Minute), h.ResendVerification)
 		auth.POST("/logout", middleware.Auth(cfg), h.Logout)
 		auth.GET("/me", middleware.Auth(cfg), h.Me)
 	}

@@ -2,9 +2,11 @@ package server
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"reflect"
 	"strings"
+	"time"
 
 	"sge-london-eye/internal/config"
 	"sge-london-eye/internal/cron"
@@ -51,12 +53,32 @@ func New(cfg *config.Config, pool *pgxpool.Pool, runner *cron.Runner, mail maile
 		middleware.CORS(cfg.AllowedOrigins),
 	)
 
+	// La API no se publica al host (compose usa `expose`, no `ports`): el unico
+	// que puede alcanzarla es Caddy, por la red interna de Docker. Por eso
+	// confiamos en los rangos privados para leer X-Forwarded-For y quedarnos con
+	// la IP REAL del cliente. Sin esto, ClientIP() devuelve siempre la de Caddy y
+	// el rate limiting se vuelve una sola cubeta para todo internet.
+	if err := engine.SetTrustedProxies([]string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"}); err != nil {
+		log.Printf("[server] no se pudieron fijar los proxies de confianza: %v", err)
+	}
+
 	s := &Server{engine: engine}
 	s.registerRoutes(cfg, pool, runner, mail)
 
+	// Timeouts explicitos (M1-02). Sin ellos, una conexion que abre y no termina
+	// de mandar la peticion se queda tomada para siempre: con unos cientos de
+	// esas (slowloris) el proceso deja de atender a cualquier otro.
+	//
+	// ReadHeaderTimeout es el que corta slowloris. Los demas estan holgados a
+	// proposito porque por aca pasan archivos de hasta 5 MB (DNIs y
+	// comprobantes) y una subida desde un celular lento tarda.
 	s.http = &http.Server{
-		Addr:    ":" + cfg.Port,
-		Handler: engine,
+		Addr:              ":" + cfg.Port,
+		Handler:           engine,
+		ReadHeaderTimeout: 10 * time.Second,  // cabeceras: nadie legitimo tarda mas
+		ReadTimeout:       60 * time.Second,  // peticion completa, incluida la subida
+		WriteTimeout:      120 * time.Second, // respuesta, incluida la descarga
+		IdleTimeout:       120 * time.Second, // keep-alive ocioso
 	}
 
 	return s
