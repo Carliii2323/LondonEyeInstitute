@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { RouterProvider } from 'react-router-dom'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { router } from '@/routes/AppRouter'
 import { useAuthStore } from '@/stores/authStore'
 import { authService } from '@/services/authService'
@@ -68,5 +69,11 @@ export function App() {
     )
   }
 
-  return <RouterProvider router={router} />
+  /* Red final: cubre lo que el router no puede, como el bootstrap de sesion
+     de arriba o un fallo al montar el propio router. */
+  return (
+    <ErrorBoundary>
+      <RouterProvider router={router} />
+    </ErrorBoundary>
+  )
 }

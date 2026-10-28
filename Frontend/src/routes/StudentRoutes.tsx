@@ -1,4 +1,5 @@
 import { Route } from 'react-router-dom'
+import { RouteError } from '@/components/RouteError'
 import { StudentLayout } from '@/components/layout/student/StudentLayout'
 import { StudentHomePage } from '@/features/student/home/StudentHomePage'
 import { StudentPaymentsPage } from '@/features/student/payments/StudentPaymentsPage'
@@ -12,6 +13,10 @@ import { StudentSettingsPage } from '@/features/student/settings/StudentSettings
 export function studentRoutes() {
   return (
     <Route element={<StudentLayout />}>
+      {/* Ruta sin path con errorElement: al estar DENTRO del layout, si una
+          pantalla revienta el error se renderiza en el <Outlet> y el menu
+          lateral queda en pie (M8-01). */}
+      <Route errorElement={<RouteError />}>
       <Route index element={<StudentHomePage />} />
       <Route path="inicio" element={<StudentHomePage />} />
       <Route path="pagos" element={<StudentPaymentsPage />} />
@@ -21,6 +26,7 @@ export function studentRoutes() {
       <Route path="libreta" element={<StudentLibretaPage />} />
       <Route path="contrato" element={<StudentContractPage />} />
       <Route path="configuracion" element={<StudentSettingsPage />} />
+    </Route>
     </Route>
   )
 }

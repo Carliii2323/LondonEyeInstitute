@@ -1,4 +1,5 @@
 import { Route } from 'react-router-dom'
+import { RouteError } from '@/components/RouteError'
 import { AdminLayout } from '@/components/layout/admin/AdminLayout'
 
 import { DashboardPage } from '@/features/admin/dashboard/DashboardPage'
@@ -25,6 +26,10 @@ import { AdminProfilePage } from '@/features/admin/profile/AdminProfilePage'
 export function adminRoutes() {
   return (
     <Route element={<AdminLayout />}>
+      {/* Ruta sin path con errorElement: al estar DENTRO del layout, si una
+          pantalla revienta el error se renderiza en el <Outlet> y el menu
+          lateral queda en pie (M8-01). */}
+      <Route errorElement={<RouteError />}>
       <Route index element={<DashboardPage />} />
       <Route path="dashboard" element={<DashboardPage />} />
       <Route path="estudiantes" element={<StudentsPage />} />
@@ -40,6 +45,7 @@ export function adminRoutes() {
       <Route path="certificados" element={<CertificatesPage />} />
       <Route path="configuracion" element={<SettingsPage />} />
       <Route path="perfil" element={<AdminProfilePage />} />
+    </Route>
     </Route>
   )
 }

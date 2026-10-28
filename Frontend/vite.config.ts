@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath, URL } from 'node:url'
@@ -21,5 +22,10 @@ export default defineConfig({
     },
     // Permite servir bajo el hostname de Tailscale (Funnel/Serve).
     allowedHosts: ['.ts.net'],
+  },
+  test: {
+    // jsdom: los tests de componentes necesitan un DOM.
+    environment: 'jsdom',
+    globals: true,
   },
 })
