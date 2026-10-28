@@ -11,3 +11,7 @@ data/
 
 # Reportes de importacion de alumnos: contienen las contraseñas generadas
 importacion-*.csv
+
+# Artefacto de compilacion de TypeScript: cambia en cada build y ensucia
+# todos los diffs. No aporta nada versionado.
+Frontend/tsconfig.tsbuildinfo
