@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"io"
 	"net/http"
 
 	"sge-london-eye/internal/dto"
@@ -187,37 +186,12 @@ func (h *PaymentHandler) SubmitReceipt(c *gin.Context) {
 	paymentID := c.Param("id")
 	studentID := c.GetString("userID")
 
-	file, header, err := c.Request.FormFile("receipt")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ApiError{Error: "campo 'receipt' requerido"})
-		return
-	}
-	defer file.Close()
-
-	const maxSize = 5 << 20 // 5 MB (los PDF pueden pesar más que una imagen)
-	if header.Size > maxSize {
-		c.JSON(http.StatusBadRequest, dto.ApiError{Error: "el archivo supera el límite de 5 MB"})
+	data, ext, ok := readValidatedUpload(c, "receipt", "el comprobante", maxDocUploadBytes, docUploadTypes)
+	if !ok {
 		return
 	}
 
-	data, err := io.ReadAll(file)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ApiError{Error: "error al leer el archivo"})
-		return
-	}
-
-	allowed := map[string]bool{
-		"image/jpeg":      true,
-		"image/png":       true,
-		"image/webp":      true,
-		"application/pdf": true,
-	}
-	if !allowed[http.DetectContentType(data)] {
-		c.JSON(http.StatusBadRequest, dto.ApiError{Error: "solo se permiten JPG, PNG, WebP o PDF"})
-		return
-	}
-
-	if err := h.svc.SubmitReceipt(c.Request.Context(), paymentID, studentID, data, header.Filename); err != nil {
+	if err := h.svc.SubmitReceipt(c.Request.Context(), paymentID, studentID, data, ext); err != nil {
 		respondError(c, err)
 		return
 	}

@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"io"
 	"net/http"
 
 	"sge-london-eye/internal/dto"
@@ -72,36 +71,12 @@ func (h *ProfileHandler) ChangePassword(c *gin.Context) {
 func (h *ProfileHandler) UpdateAvatar(c *gin.Context) {
 	userID := c.GetString("userID")
 
-	file, header, err := c.Request.FormFile("avatar")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ApiError{Error: "campo 'avatar' requerido"})
-		return
-	}
-	defer file.Close()
-
-	const maxSize = 2 << 20 // 2 MB
-	if header.Size > maxSize {
-		c.JSON(http.StatusBadRequest, dto.ApiError{Error: "el archivo supera el límite de 2 MB"})
+	data, ext, ok := readValidatedUpload(c, "avatar", "la imagen de perfil", maxAvatarBytes, imageUploadTypes)
+	if !ok {
 		return
 	}
 
-	data, err := io.ReadAll(file)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ApiError{Error: "error al leer el archivo"})
-		return
-	}
-
-	allowed := map[string]bool{
-		"image/jpeg": true,
-		"image/png":  true,
-		"image/webp": true,
-	}
-	if !allowed[http.DetectContentType(data)] {
-		c.JSON(http.StatusBadRequest, dto.ApiError{Error: "solo se permiten imágenes JPG, PNG o WebP"})
-		return
-	}
-
-	profile, err := h.svc.UpdateAvatar(c.Request.Context(), userID, data, header.Filename)
+	profile, err := h.svc.UpdateAvatar(c.Request.Context(), userID, data, ext)
 	if err != nil {
 		respondError(c, err)
 		return

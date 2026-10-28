@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"io"
 	"net/http"
 
 	"sge-london-eye/internal/config"
@@ -22,50 +21,28 @@ func NewAuthHandler(pool *pgxpool.Pool, cfg *config.Config, m mailer.Sender, st 
 	return &AuthHandler{svc: services.NewAuthService(pool, cfg, m, st)}
 }
 
-// dniFrontMaxBytes — límite del frente del DNI en el registro (imagen o PDF).
-const dniFrontMaxBytes = 5 << 20 // 5 MB
-
-// dniFrontTypes — tipos permitidos para el frente del DNI y su extensión canónica.
-// El ext se deriva del tipo DETECTADO (no del nombre del archivo, que se puede falsear).
-var dniFrontTypes = map[string]string{
-	"image/jpeg":      ".jpg",
-	"image/png":       ".png",
-	"image/webp":      ".webp",
-	"application/pdf": ".pdf",
-}
-
 // Register — auto-registro del alumno. Llega como multipart/form-data: los datos
 // del alumno (campos `form`) + el frente del DNI como archivo `dni_front`.
 func (h *AuthHandler) Register(c *gin.Context) {
+	// El limite va ANTES del bind: ShouldBind parsea el multipart (o sea, lee el
+	// cuerpo entero), asi que ponerlo despues no protegeria nada.
+	limitRequestBody(c, maxDocUploadBytes)
+
 	var req dto.RegisterRequest
 	if err := c.ShouldBind(&req); err != nil { // multipart: lee tags `form` + valida `binding`
+		// Si el cuerpo supero el tope, el MaxBytesReader corta ACA, durante el
+		// parseo del multipart. Sin este caso aparte el alumno recibiria un
+		// "formato de datos invalido" generico por mandar una foto pesada.
+		if isTooLarge(err) {
+			badUpload(c, "el frente del DNI supera el limite de "+humanMB(maxDocUploadBytes))
+			return
+		}
 		respondValidationError(c, err)
 		return
 	}
 
-	file, header, err := c.Request.FormFile("dni_front")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ApiError{Error: "el frente del DNI es obligatorio (campo 'dni_front')"})
-		return
-	}
-	defer file.Close()
-
-	if header.Size > dniFrontMaxBytes {
-		c.JSON(http.StatusBadRequest, dto.ApiError{Error: "el frente del DNI supera el límite de 5 MB"})
-		return
-	}
-	data, err := io.ReadAll(io.LimitReader(file, dniFrontMaxBytes+1))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ApiError{Error: "error al leer el archivo"})
-		return
-	}
-	if len(data) > dniFrontMaxBytes {
-		c.JSON(http.StatusBadRequest, dto.ApiError{Error: "el frente del DNI supera el límite de 5 MB"})
-		return
-	}
-	ext, ok := dniFrontTypes[http.DetectContentType(data)]
+	data, ext, ok := readValidatedUpload(c, "dni_front", "el frente del DNI", maxDocUploadBytes, docUploadTypes)
 	if !ok {
-		c.JSON(http.StatusBadRequest, dto.ApiError{Error: "el frente del DNI debe ser JPG, PNG, WebP o PDF"})
 		return
 	}
 

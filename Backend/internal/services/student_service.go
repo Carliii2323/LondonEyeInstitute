@@ -239,7 +239,8 @@ func (s *StudentService) Approve(ctx context.Context, id string) error {
 }
 
 // UploadDni guarda un archivo del DNI (side = "front" | "back") del alumno.
-func (s *StudentService) UploadDni(ctx context.Context, id, side string, data []byte, filename string) error {
+// ext es la extension canonica del tipo DETECTADO (ver handlers/upload.go, M5-10).
+func (s *StudentService) UploadDni(ctx context.Context, id, side string, data []byte, ext string) error {
 	if side != "front" && side != "back" {
 		return apperror.New(apperror.ErrBadRequest, "lado inválido (front|back)", "INVALID_SIDE")
 	}
@@ -253,7 +254,7 @@ func (s *StudentService) UploadDni(ctx context.Context, id, side string, data []
 		return apperror.ErrNotFound
 	}
 
-	url, err := s.storage.Save(ctx, "dni", id+"-"+side+filepath.Ext(filename), data)
+	url, err := s.storage.Save(ctx, "dni", id+"-"+side+ext, data)
 	if err != nil {
 		return apperror.New(apperror.ErrInternal, "error al guardar el archivo", "STORAGE_ERROR")
 	}

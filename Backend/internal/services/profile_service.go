@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log"
-	"path/filepath"
 
 	"sge-london-eye/internal/auth"
 	dbsqlc "sge-london-eye/internal/db/sqlc"
@@ -108,7 +107,8 @@ func (s *ProfileService) ChangePassword(ctx context.Context, userID string, req 
 	return nil
 }
 
-func (s *ProfileService) UpdateAvatar(ctx context.Context, userID string, fileData []byte, filename string) (*dto.UserInfo, error) {
+// ext es la extension canonica del tipo DETECTADO (ver handlers/upload.go, M5-10).
+func (s *ProfileService) UpdateAvatar(ctx context.Context, userID string, fileData []byte, ext string) (*dto.UserInfo, error) {
 	q := dbsqlc.New(s.pool)
 
 	var uid pgtype.UUID
@@ -125,7 +125,6 @@ func (s *ProfileService) UpdateAvatar(ctx context.Context, userID string, fileDa
 		_ = s.storage.Delete(ctx, current.AvatarUrl.String)
 	}
 
-	ext := filepath.Ext(filename)
 	destName := userID + ext
 
 	avatarURL, err := s.storage.Save(ctx, "avatars", destName, fileData)

@@ -587,7 +587,9 @@ func (s *PaymentService) Annul(ctx context.Context, id string) error {
 // SubmitReceipt — el alumno sube un comprobante a su propio pago.
 // Permitido sobre pending / overdue / rejected. Borra el comprobante anterior
 // del disco (caso re-subida tras rechazo).
-func (s *PaymentService) SubmitReceipt(ctx context.Context, paymentID, studentID string, data []byte, filename string) error {
+// ext es la extension canonica del tipo DETECTADO, no la del nombre que mando
+// el cliente (ver readValidatedUpload en handlers/upload.go, M5-10).
+func (s *PaymentService) SubmitReceipt(ctx context.Context, paymentID, studentID string, data []byte, ext string) error {
 	q := dbsqlc.New(s.pool)
 
 	var pid pgtype.UUID
@@ -621,7 +623,7 @@ func (s *PaymentService) SubmitReceipt(ctx context.Context, paymentID, studentID
 		}
 	}
 
-	destName := paymentID + filepath.Ext(filename)
+	destName := paymentID + ext
 	url, err := s.storage.Save(ctx, "receipts", destName, data)
 	if err != nil {
 		return apperror.New(apperror.ErrInternal, "error al guardar el comprobante", "STORAGE_ERROR")

@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"io"
 	"net/http"
 	"strconv"
 
@@ -134,24 +133,12 @@ func (h *StudentHandler) Approve(c *gin.Context) {
 
 // UploadDni — POST /admin/students/:id/dni/:side (side = front|back)
 func (h *StudentHandler) UploadDni(c *gin.Context) {
-	file, header, err := c.Request.FormFile("file")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ApiError{Error: "campo 'file' requerido"})
+	data, ext, ok := readValidatedUpload(c, "file", "el archivo del DNI", maxDocUploadBytes, docUploadTypes)
+	if !ok {
 		return
 	}
-	defer file.Close()
 
-	const maxSize = 5 << 20 // 5 MB
-	if header.Size > maxSize {
-		c.JSON(http.StatusBadRequest, dto.ApiError{Error: "el archivo supera el límite de 5 MB"})
-		return
-	}
-	data, err := io.ReadAll(file)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ApiError{Error: "error al leer el archivo"})
-		return
-	}
-	if err := h.svc.UploadDni(c.Request.Context(), c.Param("id"), c.Param("side"), data, header.Filename); err != nil {
+	if err := h.svc.UploadDni(c.Request.Context(), c.Param("id"), c.Param("side"), data, ext); err != nil {
 		respondError(c, err)
 		return
 	}
