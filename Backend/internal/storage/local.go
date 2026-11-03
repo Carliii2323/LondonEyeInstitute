@@ -18,13 +18,27 @@ func NewLocalStorage(basePath, baseURL string) *LocalStorage {
 }
 
 func (s *LocalStorage) Save(_ context.Context, subdir, filename string, data []byte) (string, error) {
+	// filename es un NOMBRE, no un path. assertInsideBase solo garantiza que
+	// el resultado caiga dentro de basePath, y un ".." en el nombre se queda
+	// adentro: Join(base/dni, "../avatars/x.png") da base/avatars/x.png, que
+	// pasa el chequeo. Hoy no es explotable (el nombre es un UUID del servidor
+	// mas una extension de un map fijo), pero /uploads/avatars se sirve
+	// publico, asi que un nombre con ".." seria escribir en un directorio
+	// publico desde una subida privada.
+	if filename == "" || filename == "." || filename == ".." || strings.ContainsAny(filename, `/\`) {
+		return "", errors.New("nombre de archivo invalido")
+	}
+
 	dir := filepath.Join(s.basePath, subdir)
 
 	if err := s.assertInsideBase(dir); err != nil {
 		return "", err
 	}
 
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	// 0700 y no 0755: aca van fotos de DNI de alumnos, en su mayoria menores.
+	// MkdirAll no toca los permisos de un directorio que ya existe, asi que si
+	// el directorio se creo antes con 0755 hay que cerrarlo a mano una vez.
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		return "", err
 	}
 
@@ -33,7 +47,10 @@ func (s *LocalStorage) Save(_ context.Context, subdir, filename string, data []b
 		return "", err
 	}
 
-	if err := os.WriteFile(destPath, data, 0644); err != nil {
+	// 0600: el unico que necesita leerlos es este proceso (UID 1000), que es
+	// el que los escribio. Caddy no toca el disco, hace reverse_proxy de
+	// /uploads/* hacia aca, y los avatares los sirve este mismo proceso.
+	if err := os.WriteFile(destPath, data, 0600); err != nil {
 		return "", err
 	}
 
