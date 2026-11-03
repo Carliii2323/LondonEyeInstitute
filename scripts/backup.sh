@@ -18,6 +18,13 @@
 #
 set -euo pipefail
 
+# Los backups contienen la base entera y, en el caso de uploads, las fotos de
+# DNI de alumnos menores. Con el umask por defecto (022) los archivos nacen
+# 0644: un chmod hecho a mano despues solo arregla los que ya estan, y el
+# siguiente backup vuelve a nacer legible por todos. 077 los crea 0600 desde el
+# principio, incluido el .part temporal, que existe mientras se escribe el dump.
+umask 077
+
 STACK_DIR="${STACK_DIR:-/opt/londoneye}"
 DEST="${DEST:-/opt/backups}"
 RETENTION_DAYS="${RETENTION_DAYS:-30}"
