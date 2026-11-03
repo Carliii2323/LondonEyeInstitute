@@ -15,3 +15,7 @@ importacion-*.csv
 # Artefacto de compilacion de TypeScript: cambia en cada build y ensucia
 # todos los diffs. No aporta nada versionado.
 Frontend/tsconfig.tsbuildinfo
+
+# Datos personales de alumnos (nombres, DNI y mails, en su mayoria menores).
+# Los scripts SI se versionan; los datos no.
+scripts/alumnos-2026.json
