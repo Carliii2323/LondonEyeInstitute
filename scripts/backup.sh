@@ -46,7 +46,13 @@ backup_db() {
 
   # Un dump real arranca con el encabezado de pg_dump. Esto detecta el caso
   # clasico: el contenedor responde pero escupe un error en vez del dump.
-  if ! gunzip -c "$tmp" | head -50 | grep -q 'PostgreSQL database dump'; then
+  #
+  # El encabezado se vuelca a una variable y se busca con here-string, SIN
+  # tuberia. Con `gunzip | head | grep -q` y pipefail activo, grep corta al
+  # primer match, head recibe SIGPIPE y la tuberia devuelve error AUNQUE el
+  # dump este perfecto: eso rechazaba todos los backups buenos.
+  local encabezado; encabezado=$(gunzip -c "$tmp" | head -50 || true)
+  if ! grep -q 'PostgreSQL database dump' <<< "$encabezado"; then
     rm -f "$tmp"; fail "el archivo no parece un dump de Postgres"
   fi
 
