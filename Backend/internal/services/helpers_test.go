@@ -258,3 +258,70 @@ func Test_isWithinAttendanceWindowAt(t *testing.T) {
 func date(y, m, d int) time.Time {
 	return time.Date(y, time.Month(m), d, 0, 0, 0, 0, time.UTC)
 }
+
+// El caso que motivo el arreglo: un curso sin docente devolvia
+// teacher_id = "00000000-0000-0000-0000-000000000000", el formulario lo mandaba
+// de vuelta en el PUT y el UPDATE moria con violacion de foreign key (500
+// UPDATE_COURSE_ERROR). Un UUID NULL tiene que salir como cadena vacia.
+func Test_uuidToString(t *testing.T) {
+	var valido pgtype.UUID
+	if err := valido.Scan("5eec3e27-379d-484a-8667-45b35c9f0fbb"); err != nil {
+		t.Fatalf("preparando el UUID valido: %v", err)
+	}
+
+	cases := []struct {
+		name string
+		in   pgtype.UUID
+		want string
+	}{
+		{"UUID valido se formatea", valido, "5eec3e27-379d-484a-8667-45b35c9f0fbb"},
+		{"NULL devuelve vacio, no el UUID nulo", pgtype.UUID{}, ""},
+		{"bytes en cero pero Valid igual se formatea", pgtype.UUID{Valid: true}, nilUUID},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := uuidToString(c.in); got != c.want {
+				t.Errorf("uuidToString() = %q; want %q", got, c.want)
+			}
+		})
+	}
+}
+
+func Test_parseOptionalUUID(t *testing.T) {
+	cases := []struct {
+		name      string
+		in        string
+		wantValid bool
+		wantErr   bool
+	}{
+		{"vacio → NULL", "", false, false},
+		{"UUID nulo → NULL", nilUUID, false, false},
+		{"UUID real → valido", "5eec3e27-379d-484a-8667-45b35c9f0fbb", true, false},
+		{"basura → error", "no-soy-un-uuid", false, true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := parseOptionalUUID(c.in)
+			if (err != nil) != c.wantErr {
+				t.Fatalf("parseOptionalUUID(%q) error = %v; wantErr %v", c.in, err, c.wantErr)
+			}
+			if err == nil && got.Valid != c.wantValid {
+				t.Errorf("parseOptionalUUID(%q).Valid = %v; want %v", c.in, got.Valid, c.wantValid)
+			}
+		})
+	}
+}
+
+// Ida y vuelta: lo que el backend EMITE para un campo opcional tiene que poder
+// volver a entrar. Es la invariante que se rompio y produjo el 500.
+func Test_uuidRoundTripOpcional(t *testing.T) {
+	emitido := uuidToString(pgtype.UUID{}) // un teacher_id NULL, tal como sale en el JSON
+
+	vuelta, err := parseOptionalUUID(emitido)
+	if err != nil {
+		t.Fatalf("el backend emitio %q y no lo acepta de vuelta: %v", emitido, err)
+	}
+	if vuelta.Valid {
+		t.Errorf("un UUID NULL volvio como valido (%q): eso viola la foreign key en el UPDATE", emitido)
+	}
+}

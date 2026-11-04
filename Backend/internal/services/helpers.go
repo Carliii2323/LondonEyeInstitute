@@ -20,7 +20,21 @@ const editableWindowMonths = 2
 
 // ── conversión de tipos pgtype ────────────────────────────────────
 
+// nilUUID — el UUID de 128 bits en cero. No es un id valido de ninguna tabla.
+const nilUUID = "00000000-0000-0000-0000-000000000000"
+
+// uuidToString — un UUID NULL se devuelve como cadena VACIA, no como
+// "00000000-0000-0000-0000-000000000000".
+//
+// Emitir el UUID nulo rompe el viaje de ida y vuelta: el frontend lo carga en
+// el formulario tal como vino y lo manda de vuelta, y ahi el UPDATE viola la
+// foreign key, porque ninguna fila tiene ese id. Paso con courses.teacher_id en
+// los cursos sin docente: editarlos devolvia 500. Afecta igual a cualquier otra
+// columna UUID que admita NULL (reviewed_by, audience_user_id, etc.).
 func uuidToString(id pgtype.UUID) string {
+	if !id.Valid {
+		return ""
+	}
 	b := id.Bytes
 	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
 }
@@ -66,7 +80,11 @@ func numericToStringPtr(n pgtype.Numeric) *string {
 }
 
 func parseOptionalUUID(s string) (pgtype.UUID, error) {
-	if s == "" {
+	// El UUID nulo se trata como "sin valor": ninguna fila lo tiene como id, asi
+	// que aceptarlo solo produce una violacion de foreign key mas abajo. Va aca
+	// ademas del arreglo en uuidToString para que un cliente que todavia lo mande
+	// (una pestana abierta de antes del deploy) no reciba un 500.
+	if s == "" || s == nilUUID {
 		return pgtype.UUID{}, nil
 	}
 	var uid pgtype.UUID
